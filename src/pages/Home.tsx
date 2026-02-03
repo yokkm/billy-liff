@@ -17,6 +17,14 @@ type ViewState =
   | { kind: "link-needed"; message: string }
   | { kind: "error"; message: string };
 
+const BRAND = {
+  orange: "#f97316",
+  orangeDeep: "#c2410c",
+  peach: "#fed7aa",
+  ink: "#0f172a",
+  muted: "#64748b",
+};
+
 function Card({ children }: { children: React.ReactNode }) {
   return (
     <div
@@ -32,6 +40,25 @@ function Card({ children }: { children: React.ReactNode }) {
     >
       {children}
     </div>
+  );
+}
+
+function LogoMark() {
+  return (
+    <img
+      src="/billy-logo.png"
+      alt="Billy"
+      style={{
+        width: 36,
+        height: 36,
+        borderRadius: 12,
+        objectFit: "cover",
+        boxShadow: "0 6px 14px rgba(249, 115, 22, 0.25)",
+      }}
+      onError={(e) => {
+        e.currentTarget.style.display = "none";
+      }}
+    />
   );
 }
 
@@ -55,17 +82,19 @@ function Button({
         width: "100%",
         padding: "12px 14px",
         borderRadius: 14,
-        border: isPrimary ? "1px solid #b45309" : "1px solid rgba(15, 23, 42, 0.12)",
+        border: isPrimary
+          ? `1px solid ${BRAND.orangeDeep}`
+          : "1px solid rgba(15, 23, 42, 0.12)",
         background: isPrimary
-          ? "linear-gradient(135deg, #b45309 0%, #f59e0b 100%)"
+          ? `linear-gradient(135deg, ${BRAND.orangeDeep} 0%, ${BRAND.orange} 100%)`
           : "rgba(255,255,255,0.9)",
-        color: isPrimary ? "#fff" : "#111827",
+        color: isPrimary ? "#fff" : BRAND.ink,
         fontWeight: 600,
         letterSpacing: 0.1,
         cursor: disabled ? "not-allowed" : "pointer",
         opacity: disabled ? 0.6 : 1,
         boxShadow: isPrimary
-          ? "0 10px 18px rgba(245, 158, 11, 0.25)"
+          ? "0 10px 18px rgba(249, 115, 22, 0.22)"
           : "0 6px 12px rgba(15, 23, 42, 0.05)",
       }}
     >
@@ -82,10 +111,10 @@ function Pill({ children }: { children: React.ReactNode }) {
         alignItems: "center",
         padding: "6px 10px",
         borderRadius: 999,
-        border: "1px solid rgba(15, 23, 42, 0.1)",
+        border: "1px solid rgba(15, 23, 42, 0.08)",
         fontSize: 12,
         color: "#475569",
-        background: "rgba(255, 255, 255, 0.85)",
+        background: "rgba(255, 247, 237, 0.9)",
       }}
     >
       {children}
@@ -212,8 +241,8 @@ export default function Home() {
       style={{
         minHeight: "100vh",
         background:
-          "radial-gradient(circle at top, rgba(255, 237, 213, 0.85), rgba(255, 250, 244, 0.96) 55%, #ffffff 100%)",
-        color: "#0f172a",
+          "radial-gradient(circle at top, rgba(254, 215, 170, 0.55), rgba(255, 250, 244, 0.96) 55%, #ffffff 100%)",
+        color: BRAND.ink,
       }}
     >
       <div style={{ maxWidth: 520, margin: "0 auto", padding: "28px 18px 36px" }}>
@@ -227,8 +256,11 @@ export default function Home() {
             }}
           >
             <div>
-              <div style={{ fontSize: 22, fontWeight: 800, letterSpacing: -0.3 }}>
-                Billy — Manage subscription
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <LogoMark />
+                <div style={{ fontSize: 22, fontWeight: 800, letterSpacing: -0.3 }}>
+                  Billy — Manage subscription
+                </div>
               </div>
               <div style={{ marginTop: 6, fontSize: 13, color: "#64748b", lineHeight: 1.6 }}>
                 Upgrade your plan or open the customer portal.
@@ -239,12 +271,12 @@ export default function Home() {
 
           <div style={{ marginTop: 14 }}>
             {view.kind === "boot" && (
-              <div style={{ fontSize: 13, color: "#64748b" }}>{view.message}</div>
+              <div style={{ fontSize: 13, color: BRAND.muted }}>{view.message}</div>
             )}
 
             {view.kind === "link-needed" && (
               <>
-                <div style={{ fontSize: 13, color: "#0f172a", whiteSpace: "pre-line" }}>
+                <div style={{ fontSize: 13, color: BRAND.ink, whiteSpace: "pre-line" }}>
                   {view.message}
                 </div>
                 <div style={{ marginTop: 12 }}>
@@ -299,14 +331,14 @@ export default function Home() {
                   </div>
 
                   {view.who.current_period_end && (
-                    <div style={{ marginTop: 10, fontSize: 12, color: "#64748b" }}>
+                    <div style={{ marginTop: 10, fontSize: 12, color: BRAND.muted }}>
                       Current period ends:{" "}
                       {new Date(view.who.current_period_end).toLocaleString()}
                     </div>
                   )}
 
                   {view.who.role !== "owner" && (
-                    <div style={{ marginTop: 10, fontSize: 12, color: "#64748b" }}>
+                    <div style={{ marginTop: 10, fontSize: 12, color: BRAND.muted }}>
                       Only the workspace <b>owner</b> can upgrade or open the billing portal.
                     </div>
                   )}
