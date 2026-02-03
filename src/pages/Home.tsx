@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import liff from "@line/liff";
-import { callFn } from "../lib/api";
+import { callFn, callFnResponse } from "../lib/api";
 import { shortId, titleCasePlan } from "../lib/format";
 
 type WhoAmI = {
@@ -127,12 +127,41 @@ function Pill({ children }: { children: React.ReactNode }) {
   );
 }
 
+function toISODateLocal(d: Date) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
+function filenameFromDisposition(header: string | null) {
+  if (!header) return null;
+  const match = header.match(/filename="?([^"]+)"?/i);
+  return match?.[1] ?? null;
+}
+
 export default function Home() {
   const [view, setView] = useState<ViewState>({
     kind: "boot",
     message: "Initializing LIFF…",
   });
   const [busy, setBusy] = useState(false);
+  const [exportBusy, setExportBusy] = useState<null | "csv" | "files">(null);
+  const [exportError, setExportError] = useState<string | null>(null);
+  const [exportFiles, setExportFiles] = useState<
+    { attachment_id: string; transaction_id: string; storage_path: string; url: string | null }[]
+  >([]);
+  const [exportOffset, setExportOffset] = useState(0);
+  const exportLimit = 50;
+  const [zipStatus, setZipStatus] = useState<"idle" | "creating" | "processing" | "ready" | "error">("idle");
+  const [zipJobId, setZipJobId] = useState<string | null>(null);
+  const [zipUrl, setZipUrl] = useState<string | null>(null);
+
+  const today = useMemo(() => new Date(), []);
+  const [exportStart, setExportStart] = useState(() =>
+    toISODateLocal(new Date(today.getFullYear(), today.getMonth(), 1)),
+  );
+  const [exportEnd, setExportEnd] = useState(() => toISODateLocal(today));
 
   const canUpgrade = useMemo(() => {
     if (view.kind !== "ready") return false;
@@ -243,6 +272,133 @@ export default function Home() {
     } finally {
       setBusy(false);
     }
+  }
+
+  async function exportCsv() {
+    if (view.kind !== "ready") return;
+    try {
+      setExportBusy("csv");
+      setExportError(null);
+
+      const id_token = liff.getIDToken();
+      const line_user_id = view.lineUserId;
+      if (!id_token || !line_user_id) throw new Error("Missing LIFF identity");
+
+      const res = await callFnResponse("billy-liff-export", {
+        id_token,
+        line_user_id,
+        action: "csv",
+        start_date: exportStart || null,
+        end_date: exportEnd || null,
+      });
+
+      const blob = await res.blob();
+      const filename =
+        filenameFromDisposition(res.headers.get("content-disposition")) ||
+        `billy_export_${exportStart || "all"}_${exportEnd || "all"}.csv`;
+
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (e: any) {
+      setExportError(e?.message ?? String(e));
+    } finally {
+      setExportBusy(null);
+    }
+  }
+
+  async function loadFiles(nextOffset = 0, append = false) {
+    if (view.kind !== "ready") return;
+    try {
+      setExportBusy("files");
+      setExportError(null);
+
+      const id_token = liff.getIDToken();
+      const line_user_id = view.lineUserId;
+      if (!id_token || !line_user_id) throw new Error("Missing LIFF identity");
+
+      const out = await callFn<{
+        files: { attachment_id: string; transaction_id: string; storage_path: string; url: string | null }[];
+      }>("billy-liff-export", {
+        id_token,
+        line_user_id,
+        action: "files",
+        limit: exportLimit,
+        offset: nextOffset,
+      });
+
+      const rows = out.files ?? [];
+      setExportFiles((prev) => (append ? [...prev, ...rows] : rows));
+      setExportOffset(nextOffset + rows.length);
+    } catch (e: any) {
+      setExportError(e?.message ?? String(e));
+    } finally {
+      setExportBusy(null);
+    }
+  }
+
+  async function createZipJob() {
+    if (view.kind !== "ready") return;
+    try {
+      setZipStatus("creating");
+      setZipUrl(null);
+      setExportError(null);
+
+      const id_token = liff.getIDToken();
+      const line_user_id = view.lineUserId;
+      if (!id_token || !line_user_id) throw new Error("Missing LIFF identity");
+
+      const out = await callFn<{ job_id: string }>("billy-liff-export-zip", {
+        id_token,
+        line_user_id,
+        action: "create",
+        start_date: exportStart || null,
+        end_date: exportEnd || null,
+      });
+
+      if (!out.job_id) throw new Error("Missing job id");
+      setZipJobId(out.job_id);
+      setZipStatus("processing");
+      await pollZipStatus(out.job_id);
+    } catch (e: any) {
+      setZipStatus("error");
+      setExportError(e?.message ?? String(e));
+    }
+  }
+
+  async function pollZipStatus(jobId: string) {
+    if (view.kind !== "ready") return;
+    const id_token = liff.getIDToken();
+    const line_user_id = view.lineUserId;
+    if (!id_token || !line_user_id) throw new Error("Missing LIFF identity");
+
+    for (let i = 0; i < 20; i += 1) {
+      const out = await callFn<{ status: string; url?: string | null }>("billy-liff-export-zip", {
+        id_token,
+        line_user_id,
+        action: "status",
+        job_id: jobId,
+      });
+
+      if (out.status === "ready" && out.url) {
+        setZipUrl(out.url);
+        setZipStatus("ready");
+        return;
+      }
+
+      if (out.status === "failed") {
+        setZipStatus("error");
+        return;
+      }
+
+      await new Promise((r) => setTimeout(r, 1500));
+    }
+
+    setZipStatus("error");
+    setExportError("ZIP is taking too long. Please try again in a moment.");
   }
 
   return (
@@ -420,6 +576,232 @@ export default function Home() {
           Open this page from LINE. URL:{" "}
           <span style={{ color: "#64748b" }}>https://liff.line.me/2009033715-OOA33Qwj</span>
         </div>
+      </div>
+
+      <div style={{ maxWidth: 520, margin: "0 auto", padding: "0 18px 40px" }}>
+        <Card>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <div style={{ fontSize: 18, fontWeight: 700 }}>Export data</div>
+            <Pill>Owner only</Pill>
+          </div>
+          <div style={{ marginTop: 8, fontSize: 12, color: BRAND.muted, lineHeight: 1.6 }}>
+            Download CSV or get file links for your workspace uploads.
+          </div>
+
+          {view.kind === "ready" && view.who.role !== "owner" && (
+            <div style={{ marginTop: 10, fontSize: 12, color: BRAND.muted }}>
+              Only the workspace owner can export data.
+            </div>
+          )}
+
+          {view.kind === "ready" && view.who.role === "owner" && (
+            <>
+              <div style={{ marginTop: 12, display: "flex", gap: 10 }}>
+                <div style={{ flex: 1 }}>
+                  <label style={{ fontSize: 12, color: BRAND.muted }}>Start date</label>
+                  <input
+                    type="date"
+                    value={exportStart}
+                    onChange={(e) => setExportStart(e.target.value)}
+                    style={{
+                      width: "100%",
+                      marginTop: 6,
+                      padding: "10px 12px",
+                      borderRadius: 10,
+                      border: "1px solid rgba(15, 23, 42, 0.12)",
+                      fontSize: 13,
+                    }}
+                  />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <label style={{ fontSize: 12, color: BRAND.muted }}>End date</label>
+                  <input
+                    type="date"
+                    value={exportEnd}
+                    onChange={(e) => setExportEnd(e.target.value)}
+                    style={{
+                      width: "100%",
+                      marginTop: 6,
+                      padding: "10px 12px",
+                      borderRadius: 10,
+                      border: "1px solid rgba(15, 23, 42, 0.12)",
+                      fontSize: 13,
+                    }}
+                  />
+                </div>
+              </div>
+
+              <div style={{ marginTop: 8, display: "flex", gap: 8 }}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const d = new Date();
+                    const start = new Date(d.getFullYear(), d.getMonth(), 1);
+                    setExportStart(toISODateLocal(start));
+                    setExportEnd(toISODateLocal(d));
+                  }}
+                  style={{
+                    padding: "6px 10px",
+                    borderRadius: 999,
+                    border: "1px solid rgba(15, 23, 42, 0.12)",
+                    fontSize: 12,
+                    background: "rgba(255,255,255,0.9)",
+                    cursor: "pointer",
+                  }}
+                >
+                  This month
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const d = new Date();
+                    const start = new Date(d.getTime() - 29 * 24 * 60 * 60 * 1000);
+                    setExportStart(toISODateLocal(start));
+                    setExportEnd(toISODateLocal(d));
+                  }}
+                  style={{
+                    padding: "6px 10px",
+                    borderRadius: 999,
+                    border: "1px solid rgba(15, 23, 42, 0.12)",
+                    fontSize: 12,
+                    background: "rgba(255,255,255,0.9)",
+                    cursor: "pointer",
+                  }}
+                >
+                  Last 30 days
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setExportStart("");
+                    setExportEnd("");
+                  }}
+                  style={{
+                    padding: "6px 10px",
+                    borderRadius: 999,
+                    border: "1px solid rgba(15, 23, 42, 0.12)",
+                    fontSize: 12,
+                    background: "rgba(255,255,255,0.9)",
+                    cursor: "pointer",
+                  }}
+                >
+                  All time
+                </button>
+              </div>
+
+              <div style={{ marginTop: 10 }}>
+                <Button
+                  disabled={exportBusy !== null}
+                  onClick={exportCsv}
+                >
+                  {exportBusy === "csv" ? "Preparing CSV…" : "Download CSV"}
+                </Button>
+              </div>
+
+              <div style={{ marginTop: 10 }}>
+                <Button
+                  variant="ghost"
+                  disabled={exportBusy !== null}
+                  onClick={() => loadFiles(0, false)}
+                >
+                  {exportBusy === "files" ? "Loading files…" : "Get file links"}
+                </Button>
+              </div>
+
+              <div style={{ marginTop: 8 }}>
+                <Button
+                  variant="ghost"
+                  disabled={zipStatus === "creating" || zipStatus === "processing"}
+                  onClick={createZipJob}
+                >
+                  {zipStatus === "creating" && "Creating ZIP…"}
+                  {zipStatus === "processing" && "Preparing ZIP…"}
+                  {zipStatus === "idle" && "Download ZIP (async)"}
+                  {zipStatus === "ready" && "Download ZIP (ready)"}
+                  {zipStatus === "error" && "Retry ZIP export"}
+                </Button>
+              </div>
+
+              {zipUrl && (
+                <div style={{ marginTop: 8 }}>
+                  <a
+                    href={zipUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    style={{
+                      fontSize: 12,
+                      color: BRAND.orangeDeep,
+                      textDecoration: "none",
+                      border: "1px solid rgba(249, 115, 22, 0.25)",
+                      padding: "8px 10px",
+                      borderRadius: 10,
+                      background: "rgba(255, 247, 237, 0.9)",
+                      display: "inline-block",
+                    }}
+                  >
+                    Open ZIP download
+                  </a>
+                </div>
+              )}
+
+              {exportError && (
+                <div
+                  style={{
+                    marginTop: 10,
+                    fontSize: 12,
+                    color: "#9a3412",
+                    whiteSpace: "pre-line",
+                    background: "rgba(255, 237, 213, 0.7)",
+                    border: "1px solid rgba(253, 186, 116, 0.6)",
+                    padding: "10px 12px",
+                    borderRadius: 12,
+                  }}
+                >
+                  {exportError}
+                </div>
+              )}
+
+              {exportFiles.length > 0 && (
+                <div style={{ marginTop: 12 }}>
+                  <div style={{ fontSize: 12, color: BRAND.muted }}>
+                    Latest {exportFiles.length} files
+                  </div>
+                  <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 8 }}>
+                    {exportFiles.map((f) => (
+                      <a
+                        key={f.attachment_id}
+                        href={f.url || "#"}
+                        target="_blank"
+                        rel="noreferrer"
+                        style={{
+                          fontSize: 12,
+                          color: BRAND.orangeDeep,
+                          textDecoration: "none",
+                          border: "1px solid rgba(249, 115, 22, 0.25)",
+                          padding: "8px 10px",
+                          borderRadius: 10,
+                          background: "rgba(255, 247, 237, 0.9)",
+                        }}
+                      >
+                        {f.storage_path}
+                      </a>
+                    ))}
+                  </div>
+                  <div style={{ marginTop: 10 }}>
+                    <Button
+                      variant="ghost"
+                      size="small"
+                      disabled={exportBusy !== null}
+                      onClick={() => loadFiles(exportOffset, true)}
+                    >
+                      Load more
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+        </Card>
       </div>
     </div>
   );
