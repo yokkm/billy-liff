@@ -67,20 +67,23 @@ function Button({
   onClick,
   variant = "primary",
   disabled,
+  size = "normal",
 }: {
   children: React.ReactNode;
   onClick?: () => void;
   variant?: "primary" | "ghost";
   disabled?: boolean;
+  size?: "normal" | "small";
 }) {
   const isPrimary = variant === "primary";
+  const isSmall = size === "small";
   return (
     <button
       disabled={disabled}
       onClick={onClick}
       style={{
         width: "100%",
-        padding: "12px 14px",
+        padding: isSmall ? "10px 12px" : "12px 14px",
         borderRadius: 14,
         border: isPrimary
           ? `1px solid ${BRAND.orangeDeep}`
@@ -89,13 +92,14 @@ function Button({
           ? `linear-gradient(135deg, ${BRAND.orangeDeep} 0%, ${BRAND.orange} 100%)`
           : "rgba(255,255,255,0.9)",
         color: isPrimary ? "#fff" : BRAND.ink,
-        fontWeight: 600,
+        fontWeight: isSmall ? 500 : 600,
+        fontSize: isSmall ? 13 : 14,
         letterSpacing: 0.1,
         cursor: disabled ? "not-allowed" : "pointer",
         opacity: disabled ? 0.6 : 1,
         boxShadow: isPrimary
           ? "0 10px 18px rgba(249, 115, 22, 0.22)"
-          : "0 6px 12px rgba(15, 23, 42, 0.05)",
+          : "0 4px 10px rgba(15, 23, 42, 0.05)",
       }}
     >
       {children}
@@ -109,12 +113,13 @@ function Pill({ children }: { children: React.ReactNode }) {
       style={{
         display: "inline-flex",
         alignItems: "center",
-        padding: "6px 10px",
+        padding: "4px 8px",
         borderRadius: 999,
         border: "1px solid rgba(15, 23, 42, 0.08)",
-        fontSize: 12,
+        fontSize: 11,
         color: "#475569",
         background: "rgba(255, 247, 237, 0.9)",
+        fontWeight: 500,
       }}
     >
       {children}
@@ -262,7 +267,13 @@ export default function Home() {
             <div>
               <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                 <LogoMark />
-                <div style={{ fontSize: 22, fontWeight: 800, letterSpacing: -0.3 }}>
+                <div
+                  style={{
+                    fontSize: "clamp(18px, 4.5vw, 22px)",
+                    fontWeight: 800,
+                    letterSpacing: -0.3,
+                  }}
+                >
                   Billy — Manage subscription
                 </div>
               </div>
@@ -273,7 +284,7 @@ export default function Home() {
             <Pill>LIFF</Pill>
           </div>
 
-          <div style={{ marginTop: 14 }}>
+          <div style={{ marginTop: 12 }}>
             {view.kind === "boot" && (
               <div style={{ fontSize: 13, color: BRAND.muted }}>{view.message}</div>
             )}
@@ -296,11 +307,21 @@ export default function Home() {
 
             {view.kind === "error" && (
               <>
-                <div style={{ fontSize: 13, color: "#b91c1c", whiteSpace: "pre-line" }}>
+                <div
+                  style={{
+                    fontSize: 13,
+                    color: "#9a3412",
+                    whiteSpace: "pre-line",
+                    background: "rgba(255, 237, 213, 0.7)",
+                    border: "1px solid rgba(253, 186, 116, 0.6)",
+                    padding: "10px 12px",
+                    borderRadius: 12,
+                  }}
+                >
                   {view.message}
                 </div>
-                <div style={{ marginTop: 12 }}>
-                  <Button variant="ghost" onClick={() => window.location.reload()}>
+                <div style={{ marginTop: 10 }}>
+                  <Button variant="ghost" size="small" onClick={() => window.location.reload()}>
                     Reload
                   </Button>
                 </div>
@@ -312,8 +333,8 @@ export default function Home() {
                 <div
                   style={{
                     marginTop: 8,
-                    padding: 14,
-                    borderRadius: 18,
+                    padding: 12,
+                    borderRadius: 16,
                     border: "1px solid rgba(15, 23, 42, 0.06)",
                     background: "rgba(255, 255, 255, 0.85)",
                     boxShadow: "0 6px 16px rgba(15, 23, 42, 0.04)",
@@ -348,7 +369,15 @@ export default function Home() {
                   )}
                 </div>
 
-                <div style={{ marginTop: 14, display: "flex", gap: 10 }}>
+                <div
+                  style={{
+                    height: 1,
+                    background: "rgba(15, 23, 42, 0.06)",
+                    margin: "12px 0",
+                  }}
+                />
+
+                <div style={{ display: "flex", gap: 10 }}>
                   <div style={{ flex: 1 }}>
                     <Button
                       disabled={!canUpgrade || busy}
@@ -368,13 +397,18 @@ export default function Home() {
                   </div>
                 </div>
 
-                <div style={{ marginTop: 10 }}>
-                  <Button disabled={!canUpgrade || busy} variant="ghost" onClick={openPortal}>
+                <div style={{ marginTop: 8 }}>
+                  <Button
+                    disabled={!canUpgrade || busy}
+                    variant="ghost"
+                    size="small"
+                    onClick={openPortal}
+                  >
                     Manage in Stripe Portal
                   </Button>
                 </div>
 
-                <div style={{ marginTop: 12, fontSize: 12, color: "#94a3b8", lineHeight: 1.6 }}>
+                <div style={{ marginTop: 10, fontSize: 12, color: "#94a3b8", lineHeight: 1.6 }}>
                   Tip: If billing status doesn’t update instantly, wait 10–30 seconds for webhook processing, then reopen.
                 </div>
               </>
