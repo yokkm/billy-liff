@@ -156,6 +156,7 @@ export default function Home() {
   const [zipStatus, setZipStatus] = useState<"idle" | "creating" | "processing" | "ready" | "error">("idle");
   const [zipJobId, setZipJobId] = useState<string | null>(null);
   const [zipUrl, setZipUrl] = useState<string | null>(null);
+  const [showPlanDetails, setShowPlanDetails] = useState(false);
 
   const today = useMemo(() => new Date(), []);
   const [exportStart, setExportStart] = useState(() =>
@@ -166,6 +167,15 @@ export default function Home() {
   const canUpgrade = useMemo(() => {
     if (view.kind !== "ready") return false;
     return view.who.role === "owner";
+  }, [view]);
+
+  const planLabel = useMemo(() => {
+    if (view.kind !== "ready") return "";
+    const key = view.who.plan_key;
+    if (key === "baby") return "Baby Billy";
+    if (key === "pro" || key === "big") return "Big Billy";
+    if (key === "free") return "Free";
+    return key;
   }, [view]);
 
   useEffect(() => {
@@ -563,6 +573,44 @@ export default function Home() {
                     Manage in Stripe Portal
                   </Button>
                 </div>
+
+                <div style={{ marginTop: 8 }}>
+                  <Button
+                    variant="ghost"
+                    size="small"
+                    onClick={() => setShowPlanDetails((v) => !v)}
+                  >
+                    {showPlanDetails ? "Hide plan details" : "Plan details"}
+                  </Button>
+                </div>
+
+                {showPlanDetails && view.kind === "ready" && (
+                  <div
+                    style={{
+                      marginTop: 10,
+                      padding: 12,
+                      borderRadius: 14,
+                      border: "1px solid rgba(15, 23, 42, 0.08)",
+                      background: "rgba(255, 255, 255, 0.8)",
+                      fontSize: 12,
+                      color: BRAND.muted,
+                      lineHeight: 1.6,
+                    }}
+                  >
+                    <div style={{ color: BRAND.ink, fontWeight: 600 }}>
+                      Current plan: {planLabel || titleCasePlan(view.who.plan_key)}
+                    </div>
+                    <div style={{ marginTop: 6 }}>
+                      Baby Billy: 50 slips/month
+                    </div>
+                    <div>
+                      Big Billy: 200 slips/month
+                    </div>
+                    <div style={{ marginTop: 6, fontSize: 11 }}>
+                      Tip: Upgrading increases monthly OCR limits.
+                    </div>
+                  </div>
+                )}
 
                 <div style={{ marginTop: 10, fontSize: 12, color: "#94a3b8", lineHeight: 1.6 }}>
                   Tip: If billing status doesn’t update instantly, wait 10–30 seconds for webhook processing, then reopen.
