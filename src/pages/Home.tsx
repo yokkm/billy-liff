@@ -228,7 +228,11 @@ export default function Home() {
         line_user_id,
       });
 
-      window.location.href = out.url;
+      if (liff.isInClient()) {
+        liff.openWindow({ url: out.url, external: true });
+      } else {
+        window.location.href = out.url;
+      }
     } catch (e: any) {
       setView({ kind: "error", message: e?.message ?? String(e) });
     } finally {
