@@ -21,11 +21,10 @@ function Card({ children }: { children: React.ReactNode }) {
   return (
     <div
       style={{
-        border: "1px solid rgba(15, 23, 42, 0.08)",
-        borderRadius: 20,
-        padding: 18,
-        background:
-          "linear-gradient(180deg, rgba(255,255,255,0.96) 0%, rgba(255,248,240,0.92) 100%)",
+        border: "1px solid rgba(15, 23, 42, 0.06)",
+        borderRadius: 22,
+        padding: 20,
+        background: "rgba(255, 255, 255, 0.86)",
         boxShadow:
           "0 10px 30px rgba(15, 23, 42, 0.08), 0 2px 6px rgba(15, 23, 42, 0.06)",
         backdropFilter: "blur(8px)",
@@ -54,20 +53,20 @@ function Button({
       onClick={onClick}
       style={{
         width: "100%",
-        padding: "12px 12px",
+        padding: "12px 14px",
         borderRadius: 14,
-        border: isPrimary ? "1px solid #7c2d12" : "1px solid rgba(15, 23, 42, 0.15)",
+        border: isPrimary ? "1px solid #b45309" : "1px solid rgba(15, 23, 42, 0.12)",
         background: isPrimary
           ? "linear-gradient(135deg, #b45309 0%, #f59e0b 100%)"
-          : "rgba(255,255,255,0.85)",
-        color: isPrimary ? "#fff" : "#1f2937",
-        fontWeight: 700,
-        letterSpacing: 0.2,
+          : "rgba(255,255,255,0.9)",
+        color: isPrimary ? "#fff" : "#111827",
+        fontWeight: 600,
+        letterSpacing: 0.1,
         cursor: disabled ? "not-allowed" : "pointer",
         opacity: disabled ? 0.6 : 1,
         boxShadow: isPrimary
           ? "0 10px 18px rgba(245, 158, 11, 0.25)"
-          : "0 6px 12px rgba(15, 23, 42, 0.06)",
+          : "0 6px 12px rgba(15, 23, 42, 0.05)",
       }}
     >
       {children}
@@ -83,10 +82,10 @@ function Pill({ children }: { children: React.ReactNode }) {
         alignItems: "center",
         padding: "6px 10px",
         borderRadius: 999,
-        border: "1px solid rgba(15, 23, 42, 0.12)",
+        border: "1px solid rgba(15, 23, 42, 0.1)",
         fontSize: 12,
-        color: "#334155",
-        background: "rgba(255, 255, 255, 0.9)",
+        color: "#475569",
+        background: "rgba(255, 255, 255, 0.85)",
       }}
     >
       {children}
@@ -213,11 +212,11 @@ export default function Home() {
       style={{
         minHeight: "100vh",
         background:
-          "radial-gradient(circle at top, rgba(255, 237, 213, 0.9), rgba(255, 251, 247, 0.95) 55%, #ffffff 100%)",
+          "radial-gradient(circle at top, rgba(255, 237, 213, 0.85), rgba(255, 250, 244, 0.96) 55%, #ffffff 100%)",
         color: "#0f172a",
       }}
     >
-      <div style={{ maxWidth: 500, margin: "0 auto", padding: "24px 18px 32px" }}>
+      <div style={{ maxWidth: 520, margin: "0 auto", padding: "28px 18px 36px" }}>
         <Card>
           <div
             style={{
@@ -228,10 +227,10 @@ export default function Home() {
             }}
           >
             <div>
-              <div style={{ fontSize: 20, fontWeight: 800, letterSpacing: -0.3 }}>
+              <div style={{ fontSize: 22, fontWeight: 800, letterSpacing: -0.3 }}>
                 Billy — Manage subscription
               </div>
-              <div style={{ marginTop: 6, fontSize: 13, color: "#64748b", lineHeight: 1.5 }}>
+              <div style={{ marginTop: 6, fontSize: 13, color: "#64748b", lineHeight: 1.6 }}>
                 Upgrade your plan or open the customer portal.
               </div>
             </div>
@@ -277,11 +276,11 @@ export default function Home() {
                 <div
                   style={{
                     marginTop: 8,
-                    padding: 12,
-                    borderRadius: 16,
-                    border: "1px solid rgba(15, 23, 42, 0.08)",
-                    background: "rgba(255, 255, 255, 0.9)",
-                    boxShadow: "0 8px 18px rgba(15, 23, 42, 0.05)",
+                    padding: 14,
+                    borderRadius: 18,
+                    border: "1px solid rgba(15, 23, 42, 0.06)",
+                    background: "rgba(255, 255, 255, 0.85)",
+                    boxShadow: "0 6px 16px rgba(15, 23, 42, 0.04)",
                   }}
                 >
                   <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
@@ -339,7 +338,7 @@ export default function Home() {
                   </Button>
                 </div>
 
-                <div style={{ marginTop: 12, fontSize: 12, color: "#94a3b8" }}>
+                <div style={{ marginTop: 12, fontSize: 12, color: "#94a3b8", lineHeight: 1.6 }}>
                   Tip: If billing status doesn’t update instantly, wait 10–30 seconds for webhook processing, then reopen.
                 </div>
               </>
