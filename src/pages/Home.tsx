@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import liff from "@line/liff";
-import { callFn, callFnResponse } from "../lib/api";
+import { callFn } from "../lib/api";
 import { shortId, titleCasePlan } from "../lib/format";
 
 type WhoAmI = {
@@ -177,12 +177,6 @@ function toISODateLocal(d: Date) {
   const m = String(d.getMonth() + 1).padStart(2, "0");
   const day = String(d.getDate()).padStart(2, "0");
   return `${y}-${m}-${day}`;
-}
-
-function filenameFromDisposition(header: string | null) {
-  if (!header) return null;
-  const match = header.match(/filename="?([^"]+)"?/i);
-  return match?.[1] ?? null;
 }
 
 export default function Home() {
