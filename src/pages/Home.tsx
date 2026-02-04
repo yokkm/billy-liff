@@ -71,12 +71,24 @@ function Button({
 }: {
   children: React.ReactNode;
   onClick?: () => void;
-  variant?: "primary" | "ghost";
+  variant?: "primary" | "secondary" | "ghost";
   disabled?: boolean;
   size?: "normal" | "small";
 }) {
   const isPrimary = variant === "primary";
+  const isSecondary = variant === "secondary";
   const isSmall = size === "small";
+  const borderColor = isPrimary
+    ? BRAND.orangeDeep
+    : isSecondary
+      ? "rgba(249, 115, 22, 0.35)"
+      : "rgba(15, 23, 42, 0.12)";
+  const backgroundColor = isPrimary
+    ? `linear-gradient(135deg, ${BRAND.orangeDeep} 0%, ${BRAND.orange} 100%)`
+    : isSecondary
+      ? "rgba(255, 247, 237, 0.95)"
+      : "rgba(255,255,255,0.9)";
+  const textColor = isPrimary ? "#fff" : BRAND.ink;
   return (
     <button
       disabled={disabled}
@@ -85,13 +97,9 @@ function Button({
         width: "100%",
         padding: isSmall ? "10px 12px" : "12px 14px",
         borderRadius: 14,
-        border: isPrimary
-          ? `1px solid ${BRAND.orangeDeep}`
-          : "1px solid rgba(15, 23, 42, 0.12)",
-        background: isPrimary
-          ? `linear-gradient(135deg, ${BRAND.orangeDeep} 0%, ${BRAND.orange} 100%)`
-          : "rgba(255,255,255,0.9)",
-        color: isPrimary ? "#fff" : BRAND.ink,
+        border: `1px solid ${borderColor}`,
+        background: backgroundColor,
+        color: textColor,
         fontWeight: isSmall ? 500 : 600,
         fontSize: isSmall ? 13 : 14,
         letterSpacing: 0.1,
@@ -124,6 +132,41 @@ function Pill({ children }: { children: React.ReactNode }) {
     >
       {children}
     </span>
+  );
+}
+
+function SummaryGrid({
+  items,
+}: {
+  items: { label: string; value: React.ReactNode }[];
+}) {
+  return (
+    <div
+      style={{
+        display: "grid",
+        gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+        gap: 10,
+      }}
+    >
+      {items.map((item) => (
+        <div
+          key={item.label}
+          style={{
+            padding: "10px 12px",
+            borderRadius: 12,
+            border: "1px solid rgba(15, 23, 42, 0.06)",
+            background: "rgba(255, 255, 255, 0.9)",
+          }}
+        >
+          <div style={{ fontSize: 11, color: BRAND.muted, fontWeight: 500 }}>
+            {item.label}
+          </div>
+          <div style={{ marginTop: 4, fontSize: 13, fontWeight: 600, color: BRAND.ink }}>
+            {item.value}
+          </div>
+        </div>
+      ))}
+    </div>
   );
 }
 
@@ -176,6 +219,8 @@ export default function Home() {
     if (key === "free") return "Free";
     return key;
   }, [view]);
+
+  const isBabyPlan = view.kind === "ready" && view.who.plan_key === "baby";
 
   useEffect(() => {
     (async () => {
@@ -448,7 +493,15 @@ export default function Home() {
             <Pill>LIFF</Pill>
           </div>
 
-          <div style={{ marginTop: 12 }}>
+          <div
+            style={{
+              height: 1,
+              background: "rgba(15, 23, 42, 0.06)",
+              margin: "12px 0 10px",
+            }}
+          />
+
+          <div>
             {view.kind === "boot" && (
               <div style={{ fontSize: 13, color: BRAND.muted }}>{view.message}</div>
             )}
@@ -504,19 +557,18 @@ export default function Home() {
                     boxShadow: "0 6px 16px rgba(15, 23, 42, 0.04)",
                   }}
                 >
-                  <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-                    <Pill>
-                      Workspace: <b style={{ marginLeft: 6 }}>{shortId(view.who.workspace_id)}</b>
-                    </Pill>
-                    <Pill>
-                      Role: <b style={{ marginLeft: 6 }}>{view.who.role}</b>
-                    </Pill>
-                    <Pill>
-                      Plan: <b style={{ marginLeft: 6 }}>{titleCasePlan(view.who.plan_key)}</b>
-                    </Pill>
-                    <Pill>
-                      Status: <b style={{ marginLeft: 6 }}>{view.who.status}</b>
-                    </Pill>
+                  <div style={{ fontSize: 11, color: BRAND.muted, fontWeight: 600 }}>
+                    Account
+                  </div>
+                  <div style={{ marginTop: 8 }}>
+                    <SummaryGrid
+                      items={[
+                        { label: "Workspace", value: shortId(view.who.workspace_id) },
+                        { label: "Role", value: view.who.role },
+                        { label: "Plan", value: titleCasePlan(view.who.plan_key) },
+                        { label: "Status", value: view.who.status },
+                      ]}
+                    />
                   </div>
 
                   {view.who.current_period_end && (
@@ -541,22 +593,26 @@ export default function Home() {
                   }}
                 />
 
+                <div style={{ fontSize: 11, color: BRAND.muted, fontWeight: 600, marginBottom: 8 }}>
+                  Billing Actions
+                </div>
+
                 <div style={{ display: "flex", gap: 10 }}>
                   <div style={{ flex: 1 }}>
                     <Button
-                      disabled={!canUpgrade || busy}
+                      variant="secondary"
+                      disabled={!canUpgrade || busy || isBabyPlan}
                       onClick={() => openCheckout("baby")}
                     >
-                      Upgrade Baby
+                      {isBabyPlan ? "Current package" : "Upgrade Baby Billy"}
                     </Button>
                   </div>
                   <div style={{ flex: 1 }}>
                     <Button
-                      variant="ghost"
                       disabled={!canUpgrade || busy}
                       onClick={() => openCheckout("big")}
                     >
-                      Upgrade Big
+                      Upgrade Big Billy
                     </Button>
                   </div>
                 </div>
@@ -627,10 +683,17 @@ export default function Home() {
       <div style={{ maxWidth: 520, margin: "0 auto", padding: "0 18px 40px" }}>
         <Card>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-            <div style={{ fontSize: 18, fontWeight: 700 }}>Export data</div>
+            <div>
+              <div style={{ fontSize: 11, color: BRAND.muted, fontWeight: 600 }}>
+                Export Tools
+              </div>
+              <div style={{ marginTop: 6, fontSize: 16, fontWeight: 700 }}>
+                Export data
+              </div>
+            </div>
             <Pill>Owner only</Pill>
           </div>
-          <div style={{ marginTop: 8, fontSize: 12, color: BRAND.muted, lineHeight: 1.6 }}>
+          <div style={{ marginTop: 6, fontSize: 12, color: BRAND.muted, lineHeight: 1.6 }}>
             Download CSV or get file links for your workspace uploads.
           </div>
 
@@ -642,7 +705,7 @@ export default function Home() {
 
           {view.kind === "ready" && view.who.role === "owner" && (
             <>
-              <div style={{ marginTop: 12, display: "flex", gap: 10 }}>
+              <div style={{ marginTop: 10, display: "flex", gap: 10 }}>
                 <div style={{ flex: 1 }}>
                   <label style={{ fontSize: 12, color: BRAND.muted }}>Start date</label>
                   <input
@@ -652,7 +715,7 @@ export default function Home() {
                     style={{
                       width: "100%",
                       marginTop: 6,
-                      padding: "10px 12px",
+                      padding: "8px 10px",
                       borderRadius: 10,
                       border: "1px solid rgba(15, 23, 42, 0.12)",
                       fontSize: 13,
@@ -668,7 +731,7 @@ export default function Home() {
                     style={{
                       width: "100%",
                       marginTop: 6,
-                      padding: "10px 12px",
+                      padding: "8px 10px",
                       borderRadius: 10,
                       border: "1px solid rgba(15, 23, 42, 0.12)",
                       fontSize: 13,
@@ -677,7 +740,7 @@ export default function Home() {
                 </div>
               </div>
 
-              <div style={{ marginTop: 8, display: "flex", gap: 8 }}>
+              <div style={{ marginTop: 8, display: "flex", gap: 8, flexWrap: "wrap" }}>
                 <button
                   type="button"
                   onClick={() => {
@@ -687,7 +750,7 @@ export default function Home() {
                     setExportEnd(toISODateLocal(d));
                   }}
                   style={{
-                    padding: "6px 10px",
+                    padding: "5px 10px",
                     borderRadius: 999,
                     border: "1px solid rgba(15, 23, 42, 0.12)",
                     fontSize: 12,
@@ -706,7 +769,7 @@ export default function Home() {
                     setExportEnd(toISODateLocal(d));
                   }}
                   style={{
-                    padding: "6px 10px",
+                    padding: "5px 10px",
                     borderRadius: 999,
                     border: "1px solid rgba(15, 23, 42, 0.12)",
                     fontSize: 12,
@@ -723,7 +786,7 @@ export default function Home() {
                     setExportEnd("");
                   }}
                   style={{
-                    padding: "6px 10px",
+                    padding: "5px 10px",
                     borderRadius: 999,
                     border: "1px solid rgba(15, 23, 42, 0.12)",
                     fontSize: 12,
@@ -744,9 +807,9 @@ export default function Home() {
                 </Button>
               </div>
 
-              <div style={{ marginTop: 10 }}>
+              <div style={{ marginTop: 8 }}>
                 <Button
-                  variant="ghost"
+                  variant="secondary"
                   disabled={exportBusy !== null}
                   onClick={() => loadFiles(0, false)}
                 >
@@ -758,6 +821,7 @@ export default function Home() {
                 <Button
                   variant="ghost"
                   disabled={zipStatus === "creating" || zipStatus === "processing"}
+                  size="small"
                   onClick={createZipJob}
                 >
                   {zipStatus === "creating" && "Creating ZIP…"}
