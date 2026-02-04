@@ -577,10 +577,6 @@ export default function Home() {
           />
 
           <div>
-            {view.kind === "boot" && (
-              <div style={{ fontSize: 13, color: BRAND.muted }}>{view.message}</div>
-            )}
-
             {view.kind === "link-needed" && (
               <>
                 <div style={{ fontSize: 13, color: BRAND.ink, whiteSpace: "pre-line" }}>
