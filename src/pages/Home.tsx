@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import liff from "@line/liff";
-import { callFn } from "../lib/api";
+import { callFn, callFnResponse } from "../lib/api";
 import { shortId, titleCasePlan } from "../lib/format";
 
 type WhoAmI = {
@@ -172,6 +172,60 @@ function SummaryList({
   );
 }
 
+function LoadingScreen({ message }: { message: string }) {
+  return (
+    <div
+      style={{
+        minHeight: "100vh",
+        background:
+          "radial-gradient(circle at top, rgba(254, 215, 170, 0.45), rgba(255, 251, 246, 0.98) 55%, #ffffff 100%)",
+        color: BRAND.ink,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: "24px 18px",
+      }}
+    >
+      <div
+        style={{
+          width: "100%",
+          maxWidth: 420,
+          border: "1px solid rgba(15, 23, 42, 0.05)",
+          borderRadius: 18,
+          padding: 18,
+          background: "rgba(255, 255, 255, 0.92)",
+          boxShadow: "0 8px 24px rgba(15, 23, 42, 0.06)",
+          textAlign: "center",
+        }}
+      >
+        <div style={{ display: "flex", justifyContent: "center" }}>
+          <img
+            src="/billy-logo.png"
+            alt="Billy"
+            className="billy-bounce"
+            style={{
+              width: 56,
+              height: 56,
+              borderRadius: 16,
+              objectFit: "cover",
+              boxShadow: "0 8px 16px rgba(249, 115, 22, 0.25)",
+            }}
+            onError={(e) => {
+              e.currentTarget.style.display = "none";
+            }}
+          />
+        </div>
+        <div style={{ marginTop: 12, fontSize: 16, fontWeight: 700 }}>
+          Billy is getting ready
+        </div>
+        <div style={{ marginTop: 6, fontSize: 13, color: BRAND.muted }}>
+          {message}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function toISODateLocal(d: Date) {
   const y = d.getFullYear();
   const m = String(d.getMonth() + 1).padStart(2, "0");
@@ -334,22 +388,47 @@ export default function Home() {
       const line_user_id = view.lineUserId;
       if (!id_token || !line_user_id) throw new Error("Missing LIFF identity");
 
-      const out = await callFn<{ url?: string }>("billy-liff-export", {
+      try {
+        const out = await callFn<{ url?: string }>("billy-liff-export", {
+          id_token,
+          line_user_id,
+          action: "csv_url",
+          start_date: exportStart || null,
+          end_date: exportEnd || null,
+        });
+
+        const url = String(out?.url ?? "");
+        if (!url) throw new Error("csv_url_missing");
+
+        if (liff.isInClient()) {
+          liff.openWindow({ url, external: true });
+        } else {
+          window.location.href = url;
+        }
+        return;
+      } catch (e: any) {
+        const msg = e?.message ?? String(e);
+        if (!msg.includes("invalid_action")) throw e;
+      }
+
+      const res = await callFnResponse("billy-liff-export", {
         id_token,
         line_user_id,
-        action: "csv_url",
+        action: "csv",
         start_date: exportStart || null,
         end_date: exportEnd || null,
       });
 
-      const url = String(out?.url ?? "");
-      if (!url) throw new Error("csv_url_missing");
+      const blob = await res.blob();
+      const filename =
+        `billy_export_${exportStart || "all"}_${exportEnd || "all"}.csv`;
 
-      if (liff.isInClient()) {
-        liff.openWindow({ url, external: true });
-      } else {
-        window.location.href = url;
-      }
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      a.click();
+      URL.revokeObjectURL(url);
     } catch (e: any) {
       setExportError(e?.message ?? String(e));
     } finally {
@@ -421,7 +500,7 @@ export default function Home() {
     const line_user_id = view.lineUserId;
     if (!id_token || !line_user_id) throw new Error("Missing LIFF identity");
 
-    for (let i = 0; i < 20; i += 1) {
+    for (let i = 0; i < 40; i += 1) {
       const out = await callFn<{ status: string; url?: string | null }>("billy-liff-export-zip", {
         id_token,
         line_user_id,
@@ -440,7 +519,7 @@ export default function Home() {
         return;
       }
 
-      await new Promise((r) => setTimeout(r, 1500));
+      await new Promise((r) => setTimeout(r, 2000));
     }
 
     setZipStatus("error");
@@ -448,6 +527,9 @@ export default function Home() {
   }
 
   return (
+    view.kind === "boot" ? (
+      <LoadingScreen message={view.message} />
+    ) : (
     <div
       style={{
         minHeight: "100vh",
@@ -893,7 +975,7 @@ export default function Home() {
               {exportFiles.length > 0 && (
                 <div style={{ marginTop: 12 }}>
                   <div style={{ fontSize: 12, color: BRAND.muted }}>
-                    Latest {exportFiles.length} files
+                    Showing latest {exportFiles.length} files
                   </div>
                   <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 8 }}>
                     {exportFiles.map((f) => (
@@ -933,5 +1015,6 @@ export default function Home() {
         </Card>
       </div>
     </div>
+    )
   );
 }
