@@ -134,7 +134,7 @@ function Pill({ children }: { children: React.ReactNode }) {
   );
 }
 
-function SummaryGrid({
+function SummaryList({
   items,
 }: {
   items: { label: string; value: React.ReactNode }[];
@@ -144,23 +144,26 @@ function SummaryGrid({
       style={{
         display: "grid",
         gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
-        gap: 8,
+        rowGap: 10,
+        columnGap: 16,
       }}
     >
       {items.map((item) => (
-        <div
-          key={item.label}
-          style={{
-            padding: "10px 12px",
-            borderRadius: 12,
-            border: "1px solid rgba(15, 23, 42, 0.05)",
-            background: "rgba(255, 255, 255, 0.94)",
-          }}
-        >
+        <div key={item.label} style={{ minWidth: 0 }}>
           <div style={{ fontSize: 11, color: BRAND.muted, fontWeight: 500 }}>
             {item.label}
           </div>
-          <div style={{ marginTop: 4, fontSize: 13, fontWeight: 600, color: BRAND.ink }}>
+          <div
+            style={{
+              marginTop: 4,
+              fontSize: 13,
+              fontWeight: 600,
+              color: BRAND.ink,
+              whiteSpace: "nowrap",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+            }}
+          >
             {item.value}
           </div>
         </div>
@@ -337,25 +340,22 @@ export default function Home() {
       const line_user_id = view.lineUserId;
       if (!id_token || !line_user_id) throw new Error("Missing LIFF identity");
 
-      const res = await callFnResponse("billy-liff-export", {
+      const out = await callFn<{ url?: string }>("billy-liff-export", {
         id_token,
         line_user_id,
-        action: "csv",
+        action: "csv_url",
         start_date: exportStart || null,
         end_date: exportEnd || null,
       });
 
-      const blob = await res.blob();
-      const filename =
-        filenameFromDisposition(res.headers.get("content-disposition")) ||
-        `billy_export_${exportStart || "all"}_${exportEnd || "all"}.csv`;
+      const url = String(out?.url ?? "");
+      if (!url) throw new Error("csv_url_missing");
 
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = filename;
-      a.click();
-      URL.revokeObjectURL(url);
+      if (liff.isInClient()) {
+        liff.openWindow({ url, external: true });
+      } else {
+        window.location.href = url;
+      }
     } catch (e: any) {
       setExportError(e?.message ?? String(e));
     } finally {
@@ -559,7 +559,7 @@ export default function Home() {
                     Account
                   </div>
                   <div style={{ marginTop: 8 }}>
-                    <SummaryGrid
+                    <SummaryList
                       items={[
                         { label: "Workspace", value: shortId(view.who.workspace_id) },
                         { label: "Role", value: view.who.role },
@@ -720,7 +720,7 @@ export default function Home() {
 
           {view.kind === "ready" && view.who.role === "owner" && (
             <>
-              <div style={{ marginTop: 10, display: "flex", gap: 10 }}>
+              <div style={{ marginTop: 10, display: "flex", gap: 10, flexWrap: "wrap" }}>
                 <div style={{ flex: 1 }}>
                   <label style={{ fontSize: 12, color: BRAND.muted }}>Start date</label>
                   <input
@@ -734,6 +734,7 @@ export default function Home() {
                       borderRadius: 10,
                       border: "1px solid rgba(15, 23, 42, 0.12)",
                       fontSize: 13,
+                      minWidth: 140,
                     }}
                   />
                 </div>
@@ -750,12 +751,21 @@ export default function Home() {
                       borderRadius: 10,
                       border: "1px solid rgba(15, 23, 42, 0.12)",
                       fontSize: 13,
+                      minWidth: 140,
                     }}
                   />
                 </div>
               </div>
 
-              <div style={{ marginTop: 8, display: "flex", gap: 8, flexWrap: "wrap" }}>
+              <div
+                style={{
+                  marginTop: 8,
+                  display: "flex",
+                  gap: 8,
+                  flexWrap: "wrap",
+                  alignItems: "center",
+                }}
+              >
                 <button
                   type="button"
                   onClick={() => {
