@@ -154,7 +154,6 @@ export default function Home() {
   const [exportOffset, setExportOffset] = useState(0);
   const exportLimit = 50;
   const [zipStatus, setZipStatus] = useState<"idle" | "creating" | "processing" | "ready" | "error">("idle");
-  const [zipJobId, setZipJobId] = useState<string | null>(null);
   const [zipUrl, setZipUrl] = useState<string | null>(null);
   const [showPlanDetails, setShowPlanDetails] = useState(false);
 
@@ -370,7 +369,6 @@ export default function Home() {
       });
 
       if (!out.job_id) throw new Error("Missing job id");
-      setZipJobId(out.job_id);
       setZipStatus("processing");
       await pollZipStatus(out.job_id);
     } catch (e: any) {
