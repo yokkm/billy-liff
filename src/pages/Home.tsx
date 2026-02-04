@@ -29,12 +29,11 @@ function Card({ children }: { children: React.ReactNode }) {
   return (
     <div
       style={{
-        border: "1px solid rgba(15, 23, 42, 0.06)",
-        borderRadius: 22,
-        padding: 20,
-        background: "rgba(255, 255, 255, 0.86)",
-        boxShadow:
-          "0 10px 30px rgba(15, 23, 42, 0.08), 0 2px 6px rgba(15, 23, 42, 0.06)",
+        border: "1px solid rgba(15, 23, 42, 0.05)",
+        borderRadius: 20,
+        padding: 18,
+        background: "rgba(255, 255, 255, 0.92)",
+        boxShadow: "0 8px 24px rgba(15, 23, 42, 0.06)",
         backdropFilter: "blur(8px)",
       }}
     >
@@ -145,7 +144,7 @@ function SummaryGrid({
       style={{
         display: "grid",
         gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
-        gap: 10,
+        gap: 8,
       }}
     >
       {items.map((item) => (
@@ -154,8 +153,8 @@ function SummaryGrid({
           style={{
             padding: "10px 12px",
             borderRadius: 12,
-            border: "1px solid rgba(15, 23, 42, 0.06)",
-            background: "rgba(255, 255, 255, 0.9)",
+            border: "1px solid rgba(15, 23, 42, 0.05)",
+            background: "rgba(255, 255, 255, 0.94)",
           }}
         >
           <div style={{ fontSize: 11, color: BRAND.muted, fontWeight: 500 }}>
@@ -459,11 +458,11 @@ export default function Home() {
       style={{
         minHeight: "100vh",
         background:
-          "radial-gradient(circle at top, rgba(254, 215, 170, 0.55), rgba(255, 250, 244, 0.96) 55%, #ffffff 100%)",
+          "radial-gradient(circle at top, rgba(254, 215, 170, 0.45), rgba(255, 251, 246, 0.98) 55%, #ffffff 100%)",
         color: BRAND.ink,
       }}
     >
-      <div style={{ maxWidth: 520, margin: "0 auto", padding: "28px 18px 36px" }}>
+      <div style={{ maxWidth: 520, margin: "0 auto", padding: "22px 18px 28px" }}>
         <Card>
           <div
             style={{
@@ -478,7 +477,7 @@ export default function Home() {
                 <LogoMark />
                 <div
                   style={{
-                    fontSize: "clamp(18px, 4.5vw, 22px)",
+                    fontSize: "clamp(17px, 4.2vw, 21px)",
                     fontWeight: 800,
                     letterSpacing: -0.3,
                   }}
@@ -486,7 +485,7 @@ export default function Home() {
                   Billy — Manage subscription
                 </div>
               </div>
-              <div style={{ marginTop: 6, fontSize: 13, color: "#64748b", lineHeight: 1.6 }}>
+              <div style={{ marginTop: 6, fontSize: 13, color: "#64748b", lineHeight: 1.55 }}>
                 Upgrade your plan or open the customer portal.
               </div>
             </div>
@@ -497,7 +496,7 @@ export default function Home() {
             style={{
               height: 1,
               background: "rgba(15, 23, 42, 0.06)",
-              margin: "12px 0 10px",
+              margin: "10px 0 10px",
             }}
           />
 
@@ -549,12 +548,11 @@ export default function Home() {
               <>
                 <div
                   style={{
-                    marginTop: 8,
+                    marginTop: 6,
                     padding: 12,
-                    borderRadius: 16,
-                    border: "1px solid rgba(15, 23, 42, 0.06)",
-                    background: "rgba(255, 255, 255, 0.85)",
-                    boxShadow: "0 6px 16px rgba(15, 23, 42, 0.04)",
+                    borderRadius: 14,
+                    border: "1px solid rgba(15, 23, 42, 0.05)",
+                    background: "rgba(255, 255, 255, 0.9)",
                   }}
                 >
                   <div style={{ fontSize: 11, color: BRAND.muted, fontWeight: 600 }}>
@@ -597,45 +595,62 @@ export default function Home() {
                   Billing Actions
                 </div>
 
-                <div style={{ display: "flex", gap: 10 }}>
-                  <div style={{ flex: 1 }}>
-                    <Button
-                      variant="secondary"
-                      disabled={!canUpgrade || busy || isBabyPlan}
-                      onClick={() => openCheckout("baby")}
-                    >
-                      {isBabyPlan ? "Current package" : "Upgrade Baby Billy"}
-                    </Button>
-                  </div>
-                  <div style={{ flex: 1 }}>
-                    <Button
-                      disabled={!canUpgrade || busy}
-                      onClick={() => openCheckout("big")}
-                    >
-                      Upgrade Big Billy
-                    </Button>
-                  </div>
-                </div>
-
-                <div style={{ marginTop: 8 }}>
+                <div style={{ display: "grid", gap: 10 }}>
                   <Button
                     disabled={!canUpgrade || busy}
-                    variant="ghost"
-                    size="small"
-                    onClick={openPortal}
+                    onClick={() => openCheckout("big")}
                   >
-                    Manage in Stripe Portal
+                    Upgrade Big Billy
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    disabled={!canUpgrade || busy || isBabyPlan}
+                    onClick={() => openCheckout("baby")}
+                  >
+                    {isBabyPlan ? "Current package" : "Upgrade Baby Billy"}
                   </Button>
                 </div>
 
                 <div style={{ marginTop: 8 }}>
-                  <Button
-                    variant="ghost"
-                    size="small"
+                  <button
+                    type="button"
+                    onClick={openPortal}
+                    disabled={!canUpgrade || busy}
+                    style={{
+                      width: "100%",
+                      padding: "8px 10px",
+                      borderRadius: 12,
+                      border: "1px solid rgba(15, 23, 42, 0.08)",
+                      background: "transparent",
+                      color: BRAND.muted,
+                      fontSize: 12,
+                      fontWeight: 600,
+                      cursor: !canUpgrade || busy ? "not-allowed" : "pointer",
+                      opacity: !canUpgrade || busy ? 0.6 : 1,
+                    }}
+                  >
+                    Manage in Stripe Portal
+                  </button>
+                </div>
+
+                <div style={{ marginTop: 6 }}>
+                  <button
+                    type="button"
                     onClick={() => setShowPlanDetails((v) => !v)}
+                    style={{
+                      width: "100%",
+                      padding: "8px 10px",
+                      borderRadius: 12,
+                      border: "1px solid rgba(15, 23, 42, 0.06)",
+                      background: "transparent",
+                      color: BRAND.muted,
+                      fontSize: 12,
+                      fontWeight: 600,
+                      cursor: "pointer",
+                    }}
                   >
                     {showPlanDetails ? "Hide plan details" : "Plan details"}
-                  </Button>
+                  </button>
                 </div>
 
                 {showPlanDetails && view.kind === "ready" && (
@@ -674,9 +689,9 @@ export default function Home() {
           </div>
         </Card>
 
-        <div style={{ marginTop: 14, fontSize: 12, color: "#94a3b8", textAlign: "center" }}>
+        <div style={{ marginTop: 10, fontSize: 11, color: "#94a3b8", textAlign: "center" }}>
           Open this page from LINE. URL:{" "}
-          <span style={{ color: "#64748b" }}>https://liff.line.me/2009033715-OOA33Qwj</span>
+          <span style={{ color: "#94a3b8" }}>https://liff.line.me/2009033715-OOA33Qwj</span>
         </div>
       </div>
 
@@ -687,13 +702,13 @@ export default function Home() {
               <div style={{ fontSize: 11, color: BRAND.muted, fontWeight: 600 }}>
                 Export Tools
               </div>
-              <div style={{ marginTop: 6, fontSize: 16, fontWeight: 700 }}>
+              <div style={{ marginTop: 4, fontSize: 16, fontWeight: 700 }}>
                 Export data
               </div>
             </div>
             <Pill>Owner only</Pill>
           </div>
-          <div style={{ marginTop: 6, fontSize: 12, color: BRAND.muted, lineHeight: 1.6 }}>
+          <div style={{ marginTop: 4, fontSize: 12, color: BRAND.muted, lineHeight: 1.6 }}>
             Download CSV or get file links for your workspace uploads.
           </div>
 
@@ -798,7 +813,7 @@ export default function Home() {
                 </button>
               </div>
 
-              <div style={{ marginTop: 10 }}>
+              <div style={{ marginTop: 8 }}>
                 <Button
                   disabled={exportBusy !== null}
                   onClick={exportCsv}
