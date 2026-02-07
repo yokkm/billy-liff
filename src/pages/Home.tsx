@@ -1984,7 +1984,13 @@ export default function Home() {
           {/* Header */}
           <div style={{ display: "flex", flexDirection: "column", alignItems: "stretch", gap: 8 }}>
             {view.kind === "ready" && (
-              <div style={{ display: "flex", justifyContent: "flex-start" }}>
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "flex-start",
+                  marginBottom: 10,
+                }}
+              >
                 <TabPills
                   active={activeTab}
                   onChange={setActiveTab}
@@ -1993,7 +1999,7 @@ export default function Home() {
               </div>
             )}
 
-            <div style={{ minWidth: 0 }}>
+            <div style={{ minWidth: 0, marginTop: 2 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                 <LogoMark />
                 <div style={{ minWidth: 0 }}>
