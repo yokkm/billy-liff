@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import liff from "@line/liff";
 import { callFn, callFnResponse } from "../lib/api";
 import { shortId, titleCasePlan } from "../lib/format";
@@ -233,6 +233,20 @@ function toISODateLocal(d: Date) {
   return `${y}-${m}-${day}`;
 }
 
+function isValidDateRange(start: string, end: string) {
+  if (!start || !end) return true; // allow "All time"
+  return new Date(start).getTime() <= new Date(end).getTime();
+}
+
+async function copyToClipboard(text: string) {
+  try {
+    await navigator.clipboard.writeText(text);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export default function Home() {
   const [view, setView] = useState<ViewState>({
     kind: "boot",
@@ -241,14 +255,13 @@ export default function Home() {
   const [busy, setBusy] = useState(false);
   const [exportBusy, setExportBusy] = useState<null | "csv" | "files">(null);
   const [exportError, setExportError] = useState<string | null>(null);
-  const [exportFiles, setExportFiles] = useState<
-    { attachment_id: string; transaction_id: string; storage_path: string; url: string | null }[]
-  >([]);
-  const [exportOffset, setExportOffset] = useState(0);
-  const exportLimit = 50;
   const [zipStatus, setZipStatus] = useState<"idle" | "creating" | "processing" | "ready" | "error">("idle");
   const [zipUrl, setZipUrl] = useState<string | null>(null);
+  const [toast, setToast] = useState<string | null>(null);
+  const [zipJobId, setZipJobId] = useState<string | null>(null);
+  const [zipCopied, setZipCopied] = useState(false);
   const [showPlanDetails, setShowPlanDetails] = useState(false);
+  const aliveRef = useRef(true);
 
   const today = useMemo(() => new Date(), []);
   const [exportStart, setExportStart] = useState(() =>
@@ -271,6 +284,26 @@ export default function Home() {
   }, [view]);
 
   const isBabyPlan = view.kind === "ready" && view.who.plan_key === "baby";
+
+  useEffect(() => {
+    if (!toast) return;
+    const t = setTimeout(() => setToast(null), 2500);
+    return () => clearTimeout(t);
+  }, [toast]);
+
+  useEffect(() => {
+    aliveRef.current = true;
+    return () => {
+      aliveRef.current = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    setZipStatus("idle");
+    setZipUrl(null);
+    setZipJobId(null);
+    setZipCopied(false);
+  }, [exportStart, exportEnd]);
 
   useEffect(() => {
     (async () => {
@@ -436,46 +469,24 @@ export default function Home() {
     }
   }
 
-  async function loadFiles(nextOffset = 0, append = false) {
-    if (view.kind !== "ready") return;
-    try {
-      setExportBusy("files");
-      setExportError(null);
-
-      const id_token = liff.getIDToken();
-      const line_user_id = view.lineUserId;
-      if (!id_token || !line_user_id) throw new Error("Missing LIFF identity");
-
-      const out = await callFn<{
-        files: { attachment_id: string; transaction_id: string; storage_path: string; url: string | null }[];
-      }>("billy-liff-export", {
-        id_token,
-        line_user_id,
-        action: "files",
-        limit: exportLimit,
-        offset: nextOffset,
-      });
-
-      const rows = out.files ?? [];
-      setExportFiles((prev) => (append ? [...prev, ...rows] : rows));
-      setExportOffset(nextOffset + rows.length);
-    } catch (e: any) {
-      setExportError(e?.message ?? String(e));
-    } finally {
-      setExportBusy(null);
-    }
-  }
-
   async function createZipJob() {
     if (view.kind !== "ready") return;
     try {
       setZipStatus("creating");
       setZipUrl(null);
+      setZipJobId(null);
+      setZipCopied(false);
       setExportError(null);
 
       const id_token = liff.getIDToken();
       const line_user_id = view.lineUserId;
       if (!id_token || !line_user_id) throw new Error("Missing LIFF identity");
+
+      if (!isValidDateRange(exportStart, exportEnd)) {
+        setZipStatus("error");
+        setExportError("Start date must be before end date.");
+        return;
+      }
 
       const out = await callFn<{ job_id: string }>("billy-liff-export-zip", {
         id_token,
@@ -486,7 +497,9 @@ export default function Home() {
       });
 
       if (!out.job_id) throw new Error("Missing job id");
+      setZipJobId(out.job_id);
       setZipStatus("processing");
+      setToast("ZIP export created. Preparing… You can close this page.");
       await pollZipStatus(out.job_id);
     } catch (e: any) {
       setZipStatus("error");
@@ -509,13 +522,17 @@ export default function Home() {
       });
 
       if (out.status === "ready" && out.url) {
+        if (!aliveRef.current) return;
         setZipUrl(out.url);
         setZipStatus("ready");
+        setToast("ZIP is ready.");
         return;
       }
 
       if (out.status === "failed") {
+        if (!aliveRef.current) return;
         setZipStatus("error");
+        setExportError("ZIP export failed. Please retry.");
         return;
       }
 
@@ -781,7 +798,7 @@ export default function Home() {
             <Pill>Owner only</Pill>
           </div>
           <div style={{ marginTop: 4, fontSize: 12, color: BRAND.muted, lineHeight: 1.6 }}>
-            Download CSV or get file links for your workspace uploads.
+            Export your data in CSV or ZIP.
           </div>
 
           {view.kind === "ready" && view.who.role !== "owner" && (
@@ -792,6 +809,7 @@ export default function Home() {
 
           {view.kind === "ready" && view.who.role === "owner" && (
             <>
+              {/* Date Range */}
               <div style={{ marginTop: 10, display: "flex", gap: 10, flexWrap: "wrap" }}>
                 <div style={{ flex: 1 }}>
                   <label style={{ fontSize: 12, color: BRAND.muted }}>Start date</label>
@@ -829,6 +847,7 @@ export default function Home() {
                 </div>
               </div>
 
+              {/* Quick range chips */}
               <div
                 style={{
                   marginTop: 8,
@@ -893,68 +912,135 @@ export default function Home() {
                 >
                   All time
                 </button>
+
+                {!isValidDateRange(exportStart, exportEnd) && (
+                  <span style={{ fontSize: 12, color: "#9a3412" }}>
+                    Start date must be before end date
+                  </span>
+                )}
               </div>
 
-              <div style={{ marginTop: 8 }}>
-                <Button
-                  disabled={exportBusy !== null}
-                  onClick={exportCsv}
-                >
-                  {exportBusy === "csv" ? "Preparing CSV…" : "Download CSV"}
-                </Button>
-              </div>
-
-              <div style={{ marginTop: 8 }}>
-                <Button
-                  variant="secondary"
-                  disabled={exportBusy !== null}
-                  onClick={() => loadFiles(0, false)}
-                >
-                  {exportBusy === "files" ? "Loading files…" : "Get file links"}
-                </Button>
-              </div>
-
-              <div style={{ marginTop: 8 }}>
-                <Button
-                  variant="ghost"
-                  disabled={zipStatus === "creating" || zipStatus === "processing"}
-                  size="small"
-                  onClick={createZipJob}
-                >
-                  {zipStatus === "creating" && "Creating ZIP…"}
-                  {zipStatus === "processing" && "Preparing ZIP…"}
-                  {zipStatus === "idle" && "Download ZIP (async)"}
-                  {zipStatus === "ready" && "Download ZIP (ready)"}
-                  {zipStatus === "error" && "Retry ZIP export"}
-                </Button>
-              </div>
-
-              {zipUrl && (
-                <div style={{ marginTop: 8 }}>
-                  <a
-                    href={zipUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    style={{
-                      fontSize: 12,
-                      color: BRAND.orangeDeep,
-                      textDecoration: "none",
-                      border: "1px solid rgba(249, 115, 22, 0.25)",
-                      padding: "8px 10px",
-                      borderRadius: 10,
-                      background: "rgba(255, 247, 237, 0.9)",
-                      display: "inline-block",
-                    }}
-                  >
-                    Open ZIP download
-                  </a>
+              {/* CSV card */}
+              <div
+                style={{
+                  marginTop: 14,
+                  padding: 12,
+                  borderRadius: 14,
+                  border: "1px solid rgba(15, 23, 42, 0.08)",
+                  background: "rgba(255, 255, 255, 0.85)",
+                }}
+              >
+                <div style={{ fontSize: 13, fontWeight: 700, color: BRAND.ink }}>
+                  CSV export
                 </div>
-              )}
+                <div style={{ marginTop: 4, fontSize: 12, color: BRAND.muted, lineHeight: 1.5 }}>
+                  Transactions only (no images).
+                </div>
+                <div style={{ marginTop: 10 }}>
+                  <Button
+                    disabled={exportBusy !== null || !isValidDateRange(exportStart, exportEnd)}
+                    onClick={exportCsv}
+                  >
+                    {exportBusy === "csv" ? "Preparing CSV…" : "Download CSV"}
+                  </Button>
+                </div>
+              </div>
 
+              {/* ZIP card */}
+              <div
+                style={{
+                  marginTop: 10,
+                  padding: 12,
+                  borderRadius: 14,
+                  border: "1px solid rgba(15, 23, 42, 0.08)",
+                  background: "rgba(255, 255, 255, 0.85)",
+                }}
+              >
+                <div style={{ fontSize: 13, fontWeight: 700, color: BRAND.ink }}>
+                  ZIP export (images)
+                </div>
+                <div style={{ marginTop: 4, fontSize: 12, color: BRAND.muted, lineHeight: 1.5 }}>
+                  Create a ZIP of uploaded receipt/payslip images for the selected date range.
+                  <br />
+                  We’ll send the download link in LINE when it’s ready.
+                </div>
+
+                <div style={{ marginTop: 10 }}>
+                  <Button
+                    variant="secondary"
+                    disabled={
+                      exportBusy !== null ||
+                      zipStatus === "creating" ||
+                      zipStatus === "processing" ||
+                      !isValidDateRange(exportStart, exportEnd)
+                    }
+                    onClick={createZipJob}
+                  >
+                    {zipStatus === "idle" && "Create ZIP export"}
+                    {zipStatus === "creating" && "Creating job…"}
+                    {zipStatus === "processing" && "Preparing ZIP… (you can close this page)"}
+                    {zipStatus === "ready" && "ZIP is ready"}
+                    {zipStatus === "error" && "Retry ZIP export"}
+                  </Button>
+                </div>
+
+                {zipJobId && zipStatus === "processing" && (
+                  <div style={{ marginTop: 8, fontSize: 12, color: BRAND.muted }}>
+                    Job ID: <span style={{ fontFamily: "monospace" }}>{zipJobId.slice(0, 8)}…</span>
+                  </div>
+                )}
+
+                {zipUrl && (
+                  <div style={{ marginTop: 10, display: "grid", gap: 8 }}>
+                    <a
+                      href={zipUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      style={{
+                        fontSize: 12,
+                        color: BRAND.orangeDeep,
+                        textDecoration: "none",
+                        border: "1px solid rgba(249, 115, 22, 0.25)",
+                        padding: "10px 12px",
+                        borderRadius: 10,
+                        background: "rgba(255, 247, 237, 0.9)",
+                        display: "inline-block",
+                        fontWeight: 700,
+                        textAlign: "center",
+                      }}
+                    >
+                      Open ZIP download
+                    </a>
+
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        const ok = await copyToClipboard(zipUrl);
+                        setZipCopied(ok);
+                        setToast(ok ? "Copied ZIP link" : "Copy failed");
+                      }}
+                      style={{
+                        padding: "9px 12px",
+                        borderRadius: 10,
+                        border: "1px solid rgba(15, 23, 42, 0.12)",
+                        background: "rgba(255,255,255,0.9)",
+                        cursor: "pointer",
+                        fontSize: 12,
+                        fontWeight: 700,
+                        color: BRAND.ink,
+                      }}
+                    >
+                      {zipCopied ? "Copied ✅" : "Copy link"}
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* Error */}
               {exportError && (
                 <div
                   style={{
-                    marginTop: 10,
+                    marginTop: 12,
                     fontSize: 12,
                     color: "#9a3412",
                     whiteSpace: "pre-line",
@@ -968,42 +1054,22 @@ export default function Home() {
                 </div>
               )}
 
-              {exportFiles.length > 0 && (
-                <div style={{ marginTop: 12 }}>
-                  <div style={{ fontSize: 12, color: BRAND.muted }}>
-                    Showing latest {exportFiles.length} files
-                  </div>
-                  <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 8 }}>
-                    {exportFiles.map((f) => (
-                      <a
-                        key={f.attachment_id}
-                        href={f.url || "#"}
-                        target="_blank"
-                        rel="noreferrer"
-                        style={{
-                          fontSize: 12,
-                          color: BRAND.orangeDeep,
-                          textDecoration: "none",
-                          border: "1px solid rgba(249, 115, 22, 0.25)",
-                          padding: "8px 10px",
-                          borderRadius: 10,
-                          background: "rgba(255, 247, 237, 0.9)",
-                        }}
-                      >
-                        {f.storage_path}
-                      </a>
-                    ))}
-                  </div>
-                  <div style={{ marginTop: 10 }}>
-                    <Button
-                      variant="ghost"
-                      size="small"
-                      disabled={exportBusy !== null}
-                      onClick={() => loadFiles(exportOffset, true)}
-                    >
-                      Load more
-                    </Button>
-                  </div>
+              {/* Toast */}
+              {toast && (
+                <div
+                  style={{
+                    marginTop: 12,
+                    fontSize: 12,
+                    color: BRAND.ink,
+                    background: "rgba(255, 247, 237, 0.95)",
+                    border: "1px solid rgba(249, 115, 22, 0.25)",
+                    padding: "10px 12px",
+                    borderRadius: 12,
+                    fontWeight: 700,
+                    textAlign: "center",
+                  }}
+                >
+                  {toast}
                 </div>
               )}
             </>
