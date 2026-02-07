@@ -1577,7 +1577,7 @@ export default function Home() {
   const [exportEnd, setExportEnd] = useState(() => toISODateLocal(today));
 
   const canOwner = useMemo(() => view.kind === "ready" && view.who.role === "owner", [view]);
-  const planKey = useMemo(() => (view.kind === "ready" ? view.who.plan_key : ""), [view]);
+  // const planKey = useMemo(() => (view.kind === "ready" ? view.who.plan_key : ""), [view]);
 
   const planLabel = useMemo(() => {
     if (view.kind !== "ready") return "";
