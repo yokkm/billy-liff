@@ -1432,10 +1432,22 @@ function TabPills({
   canOwner: boolean;
 }) {
   return (
-    <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+    <div
+      style={{
+        display: "flex",
+        gap: 6,
+        alignItems: "center",
+        flexWrap: "wrap",
+        padding: 4,
+        borderRadius: 999,
+        border: "1px solid rgba(15, 23, 42, 0.08)",
+        background: "rgba(255, 255, 255, 0.8)",
+        boxShadow: "inset 0 1px 0 rgba(255,255,255,0.8)",
+      }}
+    >
       {[
-        { key: "export" as const, label: "Export Center" },
-        { key: "billing" as const, label: "Plan & Billing" },
+        { key: "export" as const, label: "Export" },
+        { key: "billing" as const, label: "Billing" },
       ].map((t) => {
         const isActive = active === t.key;
         return (
@@ -1444,15 +1456,17 @@ function TabPills({
             type="button"
             onClick={() => onChange(t.key)}
             style={{
-              padding: "7px 10px",
+              padding: "6px 12px",
               borderRadius: 999,
-              border: `1px solid ${isActive ? "rgba(249,115,22,0.45)" : "rgba(15,23,42,0.12)"}`,
-              background: isActive ? "rgba(255, 247, 237, 0.95)" : "rgba(255,255,255,0.9)",
+              border: `1px solid ${isActive ? "rgba(249,115,22,0.35)" : "transparent"}`,
+              background: isActive ? "rgba(255, 247, 237, 0.95)" : "transparent",
               cursor: "pointer",
-              fontSize: 12,
+              fontSize: "clamp(11px, 3.4vw, 12px)",
               fontWeight: 900,
               color: BRAND.ink,
               opacity: t.key === "billing" && !canOwner ? 0.85 : 1,
+              whiteSpace: "nowrap",
+              boxShadow: isActive ? "0 6px 12px rgba(249, 115, 22, 0.18)" : "none",
             }}
             aria-pressed={isActive}
           >
@@ -1923,8 +1937,8 @@ export default function Home() {
   }
 
   const pageTitle = useMemo(() => {
-    if (activeTab === "export") return "Billy — Export Center";
-    return "Billy — Plan & Billing";
+    if (activeTab === "export") return "Export Center";
+    return "Plan & Billing";
   }, [activeTab]);
 
   // Upsell message (gentle + persuasive)
@@ -1968,12 +1982,29 @@ export default function Home() {
       <div style={{ maxWidth: 520, margin: "0 auto", padding: "22px 18px 28px" }}>
         <Card>
           {/* Header */}
-          <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12 }}>
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "stretch", gap: 8 }}>
+            {view.kind === "ready" && (
+              <div style={{ display: "flex", justifyContent: "flex-start" }}>
+                <TabPills
+                  active={activeTab}
+                  onChange={setActiveTab}
+                  canOwner={view.who.role === "owner"}
+                />
+              </div>
+            )}
+
             <div style={{ minWidth: 0 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                 <LogoMark />
                 <div style={{ minWidth: 0 }}>
-                  <div style={{ fontSize: "clamp(17px, 4.2vw, 21px)", fontWeight: 950, letterSpacing: -0.3 }}>
+                  <div
+                    style={{
+                      fontSize: "clamp(16px, 4.4vw, 20px)",
+                      fontWeight: 950,
+                      letterSpacing: -0.3,
+                      lineHeight: 1.2,
+                    }}
+                  >
                     {pageTitle}
                   </div>
                   <div style={{ marginTop: 6, fontSize: 13, color: BRAND.muted, lineHeight: 1.55 }}>
@@ -1982,7 +2013,7 @@ export default function Home() {
                 </div>
               </div>
 
-              {view.kind === "ready" && (
+              {view.kind === "ready" && activeTab === "billing" && (
                 <div style={{ marginTop: 10, display: "flex", gap: 8, flexWrap: "wrap" }}>
                   <Pill>
                     Plan: <span style={{ marginLeft: 6 }}>{titleCasePlan(view.who.plan_key)}</span>
@@ -2002,13 +2033,6 @@ export default function Home() {
               )}
             </div>
 
-            {view.kind === "ready" && (
-              <TabPills
-                active={activeTab}
-                onChange={setActiveTab}
-                canOwner={view.who.role === "owner"}
-              />
-            )}
           </div>
 
           {/* States */}
@@ -2053,58 +2077,60 @@ export default function Home() {
             <>
               <Divider />
 
-              {/* Account (collapsed) */}
-              <div>
-                <button
-                  type="button"
-                  onClick={() => setShowAccount((v) => !v)}
-                  style={{
-                    width: "100%",
-                    padding: "10px 12px",
-                    borderRadius: 14,
-                    border: `1px solid ${BRAND.border}`,
-                    background: "rgba(255,255,255,0.9)",
-                    textAlign: "left",
-                    cursor: "pointer",
-                  }}
-                >
-                  <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "center" }}>
-                    <div style={{ fontSize: 13, fontWeight: 950, color: BRAND.ink }}>Account</div>
-                    <div style={{ fontSize: 12, fontWeight: 900, color: BRAND.muted }}>
-                      {showAccount ? "Hide" : "Show"}
-                    </div>
-                  </div>
-                  <div style={{ marginTop: 4, fontSize: 12, color: BRAND.muted }}>
-                    Workspace, role, and plan details.
-                  </div>
-                </button>
-
-                {showAccount && (
-                  <div
+              {/* Account (collapsed) - only in Billing tab */}
+              {activeTab === "billing" && (
+                <div>
+                  <button
+                    type="button"
+                    onClick={() => setShowAccount((v) => !v)}
                     style={{
-                      marginTop: 10,
-                      padding: 12,
+                      width: "100%",
+                      padding: "10px 12px",
                       borderRadius: 14,
-                      border: "1px solid rgba(15, 23, 42, 0.06)",
-                      background: "rgba(255, 255, 255, 0.9)",
+                      border: `1px solid ${BRAND.border}`,
+                      background: "rgba(255,255,255,0.9)",
+                      textAlign: "left",
+                      cursor: "pointer",
                     }}
                   >
-                    <SummaryList
-                      items={[
-                        { label: "Workspace", value: shortId(view.who.workspace_id) },
-                        { label: "Role", value: view.who.role },
-                        { label: "Plan", value: titleCasePlan(view.who.plan_key) },
-                        { label: "Status", value: view.who.status },
-                      ]}
-                    />
-                    {view.who.role !== "owner" && (
-                      <div style={{ marginTop: 10, fontSize: 12, color: BRAND.muted }}>
-                        Only the workspace <b>owner</b> can export and manage billing.
+                    <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "center" }}>
+                      <div style={{ fontSize: 13, fontWeight: 950, color: BRAND.ink }}>Account</div>
+                      <div style={{ fontSize: 12, fontWeight: 900, color: BRAND.muted }}>
+                        {showAccount ? "Hide" : "Show"}
                       </div>
-                    )}
-                  </div>
-                )}
-              </div>
+                    </div>
+                    <div style={{ marginTop: 4, fontSize: 12, color: BRAND.muted }}>
+                      Workspace, role, and plan details.
+                    </div>
+                  </button>
+
+                  {showAccount && (
+                    <div
+                      style={{
+                        marginTop: 10,
+                        padding: 12,
+                        borderRadius: 14,
+                        border: "1px solid rgba(15, 23, 42, 0.06)",
+                        background: "rgba(255, 255, 255, 0.9)",
+                      }}
+                    >
+                      <SummaryList
+                        items={[
+                          { label: "Workspace", value: shortId(view.who.workspace_id) },
+                          { label: "Role", value: view.who.role },
+                          { label: "Plan", value: titleCasePlan(view.who.plan_key) },
+                          { label: "Status", value: view.who.status },
+                        ]}
+                      />
+                      {view.who.role !== "owner" && (
+                        <div style={{ marginTop: 10, fontSize: 12, color: BRAND.muted }}>
+                          Only the workspace <b>owner</b> can export and manage billing.
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* Upsell (owner only) */}
               {upsell && (
