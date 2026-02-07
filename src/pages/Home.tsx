@@ -1,3 +1,5 @@
+// // Works 1
+
 // import { useEffect, useMemo, useRef, useState } from "react";
 // import liff from "@line/liff";
 // import { callFn, callFnResponse } from "../lib/api";
@@ -77,17 +79,21 @@
 //   const isPrimary = variant === "primary";
 //   const isSecondary = variant === "secondary";
 //   const isSmall = size === "small";
+
 //   const borderColor = isPrimary
 //     ? BRAND.orangeDeep
 //     : isSecondary
 //       ? "rgba(249, 115, 22, 0.35)"
 //       : "rgba(15, 23, 42, 0.12)";
+
 //   const backgroundColor = isPrimary
 //     ? `linear-gradient(135deg, ${BRAND.orangeDeep} 0%, ${BRAND.orange} 100%)`
 //     : isSecondary
 //       ? "rgba(255, 247, 237, 0.95)"
 //       : "rgba(255,255,255,0.9)";
+
 //   const textColor = isPrimary ? "#fff" : BRAND.ink;
+
 //   return (
 //     <button
 //       disabled={disabled}
@@ -233,23 +239,6 @@
 //   return `${y}-${m}-${day}`;
 // }
 
-// function openExternal(url: string) {
-//   try {
-//     if (liff.isInClient()) {
-//       liff.openWindow({
-//         url,
-//         external: true, // 🚨 THIS IS THE KEY
-//       });
-//     } else {
-//       window.open(url, "_blank", "noopener,noreferrer");
-//     }
-//   } catch {
-//     // Fallback
-//     window.open(url, "_blank", "noopener,noreferrer");
-//   }
-// }
-
-
 // function isValidDateRange(start: string, end: string) {
 //   if (!start || !end) return true; // allow "All time"
 //   return new Date(start).getTime() <= new Date(end).getTime();
@@ -264,20 +253,55 @@
 //   }
 // }
 
+// /**
+//  * ✅ ALWAYS open external browser for downloads/Stripe.
+//  * This avoids LINE in-app webview showing blank/white page and failing downloads.
+//  */
+// function openExternal(url: string) {
+//   try {
+//     if (liff.isInClient()) {
+//       liff.openWindow({ url, external: true });
+//       return;
+//     }
+//     window.open(url, "_blank", "noopener,noreferrer");
+//   } catch {
+//     window.open(url, "_blank", "noopener,noreferrer");
+//   }
+// }
+
+// // Helper: pick the best URL from backend response
+// function pickBestUrl(out: any): string | null {
+//   const downloadUrl = typeof out?.download_url === "string" ? out.download_url : "";
+//   const url = typeof out?.url === "string" ? out.url : "";
+//   const signedUrl = typeof out?.signed_url === "string" ? out.signed_url : "";
+
+//   // Prefer token-based download_url (will 302 to fresh signed url)
+//   if (downloadUrl) return downloadUrl;
+//   if (url) return url;
+//   if (signedUrl) return signedUrl;
+//   return null;
+// }
+
 // export default function Home() {
 //   const [view, setView] = useState<ViewState>({
 //     kind: "boot",
 //     message: "Initializing LIFF…",
 //   });
+
 //   const [busy, setBusy] = useState(false);
-//   const [exportBusy, setExportBusy] = useState<null | "csv" | "files">(null);
+//   const [exportBusy, setExportBusy] = useState<null | "csv">(null);
 //   const [exportError, setExportError] = useState<string | null>(null);
-//   const [zipStatus, setZipStatus] = useState<"idle" | "creating" | "processing" | "ready" | "error">("idle");
+
+//   const [zipStatus, setZipStatus] = useState<
+//     "idle" | "creating" | "processing" | "ready" | "error"
+//   >("idle");
 //   const [zipUrl, setZipUrl] = useState<string | null>(null);
-//   const [toast, setToast] = useState<string | null>(null);
 //   const [zipJobId, setZipJobId] = useState<string | null>(null);
 //   const [zipCopied, setZipCopied] = useState(false);
+
+//   const [toast, setToast] = useState<string | null>(null);
 //   const [showPlanDetails, setShowPlanDetails] = useState(false);
+
 //   const aliveRef = useRef(true);
 
 //   const today = useMemo(() => new Date(), []);
@@ -316,12 +340,15 @@
 //   }, []);
 
 //   useEffect(() => {
+//     // Reset zip UI when date range changes
 //     setZipStatus("idle");
 //     setZipUrl(null);
 //     setZipJobId(null);
 //     setZipCopied(false);
+//     setExportError(null);
 //   }, [exportStart, exportEnd]);
 
+//   // Boot LIFF + whoami
 //   useEffect(() => {
 //     (async () => {
 //       try {
@@ -348,7 +375,6 @@
 //         const profile = await liff.getProfile();
 //         const line_user_id = profile.userId;
 
-//         // Resolve workspace + role + plan from backend
 //         try {
 //           const who = await callFn<WhoAmI>("liff-whoami", {
 //             id_token,
@@ -383,7 +409,6 @@
 //     if (view.kind !== "ready") return;
 //     try {
 //       setBusy(true);
-
 //       const id_token = liff.getIDToken();
 //       const line_user_id = view.lineUserId;
 //       if (!id_token || !line_user_id) throw new Error("Missing LIFF identity");
@@ -394,7 +419,8 @@
 //         plan_key,
 //       });
 
-//       window.location.href = out.url;
+//       if (!out?.url) throw new Error("Missing checkout url");
+//       openExternal(out.url); // ✅ external always
 //     } catch (e: any) {
 //       setView({ kind: "error", message: e?.message ?? String(e) });
 //     } finally {
@@ -406,7 +432,6 @@
 //     if (view.kind !== "ready") return;
 //     try {
 //       setBusy(true);
-
 //       const id_token = liff.getIDToken();
 //       const line_user_id = view.lineUserId;
 //       if (!id_token || !line_user_id) throw new Error("Missing LIFF identity");
@@ -416,11 +441,8 @@
 //         line_user_id,
 //       });
 
-//       if (liff.isInClient()) {
-//         liff.openWindow({ url: out.url, external: true });
-//       } else {
-//         window.location.href = out.url;
-//       }
+//       if (!out?.url) throw new Error("Missing portal url");
+//       openExternal(out.url); // ✅ external always
 //     } catch (e: any) {
 //       setView({ kind: "error", message: e?.message ?? String(e) });
 //     } finally {
@@ -438,6 +460,7 @@
 //       const line_user_id = view.lineUserId;
 //       if (!id_token || !line_user_id) throw new Error("Missing LIFF identity");
 
+//       // Prefer URL mode if backend supports it (best in LINE)
 //       try {
 //         const out = await callFn<{ url?: string }>("billy-liff-export", {
 //           id_token,
@@ -447,20 +470,18 @@
 //           end_date: exportEnd || null,
 //         });
 
-//         const url = String(out?.url ?? "");
-//         if (!url) throw new Error("csv_url_missing");
-
-//         if (liff.isInClient()) {
-//           liff.openWindow({ url, external: true });
-//         } else {
-//           window.location.href = url;
+//         const url = typeof out?.url === "string" ? out.url : "";
+//         if (url) {
+//           openExternal(url); // ✅ external always
+//           return;
 //         }
-//         return;
 //       } catch (e: any) {
+//         // If backend doesn't support csv_url, fall back to blob download (may still fail in LINE webview)
 //         const msg = e?.message ?? String(e);
 //         if (!msg.includes("invalid_action")) throw e;
 //       }
 
+//       // Fallback: blob download (best works outside LINE)
 //       const res = await callFnResponse("billy-liff-export", {
 //         id_token,
 //         line_user_id,
@@ -470,9 +491,18 @@
 //       });
 
 //       const blob = await res.blob();
-//       const filename =
-//         `billy_export_${exportStart || "all"}_${exportEnd || "all"}.csv`;
+//       const filename = `billy_export_${exportStart || "all"}_${exportEnd || "all"}.csv`;
 
+//       // If in LINE client, open a new browser tab first (some devices block blob download in webview)
+//       if (liff.isInClient()) {
+//         // Create a temporary object url then open external.
+//         const u = URL.createObjectURL(blob);
+//         openExternal(u);
+//         setTimeout(() => URL.revokeObjectURL(u), 10_000);
+//         return;
+//       }
+
+//       // Normal browser download
 //       const url = URL.createObjectURL(blob);
 //       const a = document.createElement("a");
 //       a.href = url;
@@ -505,7 +535,7 @@
 //         return;
 //       }
 
-//       const out = await callFn<{ job_id: string }>("billy-liff-export-zip", {
+//       const out = await callFn<{ job_id: string; download_url?: string }>("billy-liff-export-zip", {
 //         id_token,
 //         line_user_id,
 //         action: "create",
@@ -513,9 +543,15 @@
 //         end_date: exportEnd || null,
 //       });
 
-//       if (!out.job_id) throw new Error("Missing job id");
+//       if (!out?.job_id) throw new Error("Missing job id");
+
 //       setZipJobId(out.job_id);
 //       setZipStatus("processing");
+
+//       // If backend already returns download_url on create, store it early (even before ready)
+//       const initialUrl = pickBestUrl(out);
+//       if (initialUrl) setZipUrl(initialUrl);
+
 //       setToast("ZIP export created. Preparing… You can close this page.");
 //       await pollZipStatus(out.job_id);
 //     } catch (e: any) {
@@ -526,27 +562,34 @@
 
 //   async function pollZipStatus(jobId: string) {
 //     if (view.kind !== "ready") return;
+
 //     const id_token = liff.getIDToken();
 //     const line_user_id = view.lineUserId;
 //     if (!id_token || !line_user_id) throw new Error("Missing LIFF identity");
 
+//     // ~80 seconds
 //     for (let i = 0; i < 40; i += 1) {
-//       const out = await callFn<{ status: string; url?: string | null }>("billy-liff-export-zip", {
+//       const out = await callFn<any>("billy-liff-export-zip", {
 //         id_token,
 //         line_user_id,
 //         action: "status",
 //         job_id: jobId,
 //       });
 
-//       if (out.status === "ready" && out.url) {
+//       const status = String(out?.status ?? "");
+//       const best = pickBestUrl(out);
+
+//       // Keep latest best url so user can copy/open anytime
+//       if (best && aliveRef.current) setZipUrl(best);
+
+//       if (status === "ready") {
 //         if (!aliveRef.current) return;
-//         setZipUrl(out.url);
 //         setZipStatus("ready");
-//         setToast("ZIP is ready.");
+//         setToast("ZIP is ready. Download opens in browser.");
 //         return;
 //       }
 
-//       if (out.status === "failed") {
+//       if (status === "failed") {
 //         if (!aliveRef.current) return;
 //         setZipStatus("error");
 //         setExportError("ZIP export failed. Please retry.");
@@ -560,10 +603,9 @@
 //     setExportError("ZIP is taking too long. Please try again in a moment.");
 //   }
 
-//   return (
-//     view.kind === "boot" ? (
-//       <LoadingScreen message={view.message} />
-//     ) : (
+//   return view.kind === "boot" ? (
+//     <LoadingScreen message={view.message} />
+//   ) : (
 //     <div
 //       style={{
 //         minHeight: "100vh",
@@ -617,10 +659,7 @@
 //                   {view.message}
 //                 </div>
 //                 <div style={{ marginTop: 12 }}>
-//                   <Button
-//                     variant="ghost"
-//                     onClick={() => liff.openWindow({ url: "https://line.me", external: true })}
-//                   >
+//                   <Button variant="ghost" onClick={() => openExternal("https://line.me")}>
 //                     Open LINE
 //                   </Button>
 //                 </div>
@@ -661,9 +700,7 @@
 //                     background: "rgba(255, 255, 255, 0.9)",
 //                   }}
 //                 >
-//                   <div style={{ fontSize: 11, color: BRAND.muted, fontWeight: 600 }}>
-//                     Account
-//                   </div>
+//                   <div style={{ fontSize: 11, color: BRAND.muted, fontWeight: 600 }}>Account</div>
 //                   <div style={{ marginTop: 8 }}>
 //                     <SummaryList
 //                       items={[
@@ -677,8 +714,7 @@
 
 //                   {view.who.current_period_end && (
 //                     <div style={{ marginTop: 10, fontSize: 12, color: BRAND.muted }}>
-//                       Current period ends:{" "}
-//                       {new Date(view.who.current_period_end).toLocaleString()}
+//                       Current period ends: {new Date(view.who.current_period_end).toLocaleString()}
 //                     </div>
 //                   )}
 
@@ -702,12 +738,10 @@
 //                 </div>
 
 //                 <div style={{ display: "grid", gap: 10 }}>
-//                   <Button
-//                     disabled={!canUpgrade || busy}
-//                     onClick={() => openCheckout("big")}
-//                   >
+//                   <Button disabled={!canUpgrade || busy} onClick={() => openCheckout("big")}>
 //                     Upgrade Big Billy
 //                   </Button>
+
 //                   <Button
 //                     variant="secondary"
 //                     disabled={!canUpgrade || busy || isBabyPlan}
@@ -735,7 +769,7 @@
 //                       opacity: !canUpgrade || busy ? 0.6 : 1,
 //                     }}
 //                   >
-//                     Manage in Stripe Portal
+//                     Manage in Stripe Portal (opens browser)
 //                   </button>
 //                 </div>
 
@@ -759,7 +793,7 @@
 //                   </button>
 //                 </div>
 
-//                 {showPlanDetails && view.kind === "ready" && (
+//                 {showPlanDetails && (
 //                   <div
 //                     style={{
 //                       marginTop: 10,
@@ -775,12 +809,8 @@
 //                     <div style={{ color: BRAND.ink, fontWeight: 600 }}>
 //                       Current plan: {planLabel || titleCasePlan(view.who.plan_key)}
 //                     </div>
-//                     <div style={{ marginTop: 6 }}>
-//                       Baby Billy: 50 slips/month
-//                     </div>
-//                     <div>
-//                       Big Billy: 200 slips/month
-//                     </div>
+//                     <div style={{ marginTop: 6 }}>Baby Billy: 50 slips/month</div>
+//                     <div>Big Billy: 200 slips/month</div>
 //                     <div style={{ marginTop: 6, fontSize: 11 }}>
 //                       Tip: Upgrading increases monthly OCR limits.
 //                     </div>
@@ -788,7 +818,8 @@
 //                 )}
 
 //                 <div style={{ marginTop: 10, fontSize: 12, color: "#94a3b8", lineHeight: 1.6 }}>
-//                   Tip: If billing status doesn’t update instantly, wait 10–30 seconds for webhook processing, then reopen.
+//                   Tip: If billing status doesn’t update instantly, wait 10–30 seconds for webhook
+//                   processing, then reopen.
 //                 </div>
 //               </>
 //             )}
@@ -805,15 +836,12 @@
 //         <Card>
 //           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
 //             <div>
-//               <div style={{ fontSize: 11, color: BRAND.muted, fontWeight: 600 }}>
-//                 Export Tools
-//               </div>
-//               <div style={{ marginTop: 4, fontSize: 16, fontWeight: 700 }}>
-//                 Export data
-//               </div>
+//               <div style={{ fontSize: 11, color: BRAND.muted, fontWeight: 600 }}>Export Tools</div>
+//               <div style={{ marginTop: 4, fontSize: 16, fontWeight: 700 }}>Export data</div>
 //             </div>
 //             <Pill>Owner only</Pill>
 //           </div>
+
 //           <div style={{ marginTop: 4, fontSize: 12, color: BRAND.muted, lineHeight: 1.6 }}>
 //             Export your data in CSV or ZIP.
 //           </div>
@@ -845,6 +873,7 @@
 //                     }}
 //                   />
 //                 </div>
+
 //                 <div style={{ flex: 1 }}>
 //                   <label style={{ fontSize: 12, color: BRAND.muted }}>End date</label>
 //                   <input
@@ -893,6 +922,7 @@
 //                 >
 //                   This month
 //                 </button>
+
 //                 <button
 //                   type="button"
 //                   onClick={() => {
@@ -912,6 +942,7 @@
 //                 >
 //                   Last 30 days
 //                 </button>
+
 //                 <button
 //                   type="button"
 //                   onClick={() => {
@@ -947,18 +978,16 @@
 //                   background: "rgba(255, 255, 255, 0.85)",
 //                 }}
 //               >
-//                 <div style={{ fontSize: 13, fontWeight: 700, color: BRAND.ink }}>
-//                   CSV export
-//                 </div>
+//                 <div style={{ fontSize: 13, fontWeight: 700, color: BRAND.ink }}>CSV export</div>
 //                 <div style={{ marginTop: 4, fontSize: 12, color: BRAND.muted, lineHeight: 1.5 }}>
-//                   Transactions only (no images).
+//                   Transactions only (no images). Download opens in browser.
 //                 </div>
 //                 <div style={{ marginTop: 10 }}>
 //                   <Button
 //                     disabled={exportBusy !== null || !isValidDateRange(exportStart, exportEnd)}
 //                     onClick={exportCsv}
 //                   >
-//                     {exportBusy === "csv" ? "Preparing CSV…" : "Download CSV"}
+//                     {exportBusy === "csv" ? "Preparing CSV…" : "Download CSV (opens browser)"}
 //                   </Button>
 //                 </div>
 //               </div>
@@ -1003,73 +1032,30 @@
 
 //                 {zipJobId && zipStatus === "processing" && (
 //                   <div style={{ marginTop: 8, fontSize: 12, color: BRAND.muted }}>
-//                     Job ID: <span style={{ fontFamily: "monospace" }}>{zipJobId.slice(0, 8)}…</span>
+//                     Job ID:{" "}
+//                     <span style={{ fontFamily: "monospace" }}>{zipJobId.slice(0, 8)}…</span>
 //                   </div>
 //                 )}
 
 //                 {zipUrl && (
 //                   <div style={{ marginTop: 10, display: "grid", gap: 8 }}>
-//                     {/* <a
-//                       href={zipUrl}
-//                       target="_blank"
-//                       rel="noreferrer"
+//                     <button
+//                       type="button"
+//                       onClick={() => openExternal(zipUrl)}
 //                       style={{
-//                         fontSize: 12,
-//                         color: BRAND.orangeDeep,
-//                         textDecoration: "none",
-//                         border: "1px solid rgba(249, 115, 22, 0.25)",
-//                         padding: "10px 12px",
+//                         padding: "12px",
 //                         borderRadius: 10,
-//                         background: "rgba(255, 247, 237, 0.9)",
-//                         display: "inline-block",
-//                         fontWeight: 700,
+//                         border: "1px solid rgba(249, 115, 22, 0.35)",
+//                         background: "rgba(255, 247, 237, 0.95)",
+//                         fontSize: 13,
+//                         fontWeight: 800,
+//                         color: BRAND.orangeDeep,
+//                         cursor: "pointer",
 //                         textAlign: "center",
 //                       }}
 //                     >
-//                       Open ZIP download
-//                     </a> */}
-//                     {zipUrl && (
-//                       <div style={{ marginTop: 10, display: "grid", gap: 8 }}>
-//                         <button
-//                           type="button"
-//                           onClick={() => openExternal(zipUrl)}
-//                           style={{
-//                             padding: "12px",
-//                             borderRadius: 10,
-//                             border: "1px solid rgba(249, 115, 22, 0.35)",
-//                             background: "rgba(255, 247, 237, 0.95)",
-//                             fontSize: 13,
-//                             fontWeight: 800,
-//                             color: BRAND.orangeDeep,
-//                             cursor: "pointer",
-//                             textAlign: "center",
-//                           }}
-//                         >
-//                           ⬇️ Download ZIP (opens browser)
-//                         </button>
-
-//                         <button
-//                           type="button"
-//                           onClick={async () => {
-//                             const ok = await copyToClipboard(zipUrl);
-//                             setZipCopied(ok);
-//                             setToast(ok ? "Copied ZIP link" : "Copy failed");
-//                           }}
-//                           style={{
-//                             padding: "10px",
-//                             borderRadius: 10,
-//                             border: "1px solid rgba(15, 23, 42, 0.12)",
-//                             background: "rgba(255,255,255,0.9)",
-//                             fontSize: 12,
-//                             fontWeight: 700,
-//                             cursor: "pointer",
-//                           }}
-//                         >
-//                           {zipCopied ? "Copied ✅" : "Copy link"}
-//                         </button>
-//                       </div>
-//                     )}
-
+//                       ⬇️ Download ZIP (opens browser)
+//                     </button>
 
 //                     <button
 //                       type="button"
@@ -1079,18 +1065,23 @@
 //                         setToast(ok ? "Copied ZIP link" : "Copy failed");
 //                       }}
 //                       style={{
-//                         padding: "9px 12px",
+//                         padding: "10px",
 //                         borderRadius: 10,
 //                         border: "1px solid rgba(15, 23, 42, 0.12)",
 //                         background: "rgba(255,255,255,0.9)",
-//                         cursor: "pointer",
 //                         fontSize: 12,
 //                         fontWeight: 700,
+//                         cursor: "pointer",
 //                         color: BRAND.ink,
 //                       }}
 //                     >
 //                       {zipCopied ? "Copied ✅" : "Copy link"}
 //                     </button>
+
+//                     <div style={{ fontSize: 11, color: BRAND.muted, lineHeight: 1.5 }}>
+//                       Note: Downloads don’t work reliably inside LINE in-app browser, so we always open the
+//                       external browser.
+//                     </div>
 //                   </div>
 //                 )}
 //               </div>
@@ -1136,25 +1127,8 @@
 //         </Card>
 //       </div>
 //     </div>
-//     )
 //   );
 // }
-// ✅ DROP-IN Home.tsx (replaces your existing Home.tsx بالكامل)
-// Goal: ALL download/open links MUST open external browser (avoid LINE in-app blank page)
-//
-// Key changes vs your current file:
-// - Adds openExternal() helper and uses it everywhere (CSV url, ZIP url, Stripe portal, checkout)
-// - Fixes ZIP flow to prefer download_url (token endpoint) when available
-// - Removes duplicated "Copy link" button block
-// - Makes polling read either {download_url} or {url} or {signed_url} safely
-//
-// NOTE: This file assumes you already have:
-// - callFn, callFnResponse from "../lib/api"
-// - shortId, titleCasePlan from "../lib/format"
-// - liff-whoami edge function works
-// - billy-liff-export edge function works
-// - billy-liff-export-zip edge function returns download_url on create/status (recommended)
-
 import { useEffect, useMemo, useRef, useState } from "react";
 import liff from "@line/liff";
 import { callFn, callFnResponse } from "../lib/api";
@@ -1395,7 +1369,7 @@ function toISODateLocal(d: Date) {
 }
 
 function isValidDateRange(start: string, end: string) {
-  if (!start || !end) return true; // allow "All time"
+  if (!start || !end) return true;
   return new Date(start).getTime() <= new Date(end).getTime();
 }
 
@@ -1408,30 +1382,24 @@ async function copyToClipboard(text: string) {
   }
 }
 
-/**
- * ✅ ALWAYS open external browser for downloads/Stripe.
- * This avoids LINE in-app webview showing blank/white page and failing downloads.
- */
+/** ✅ Always open external browser (avoid LINE blank pages) */
 function openExternal(url: string) {
   try {
     if (liff.isInClient()) {
       liff.openWindow({ url, external: true });
-      return;
+    } else {
+      window.open(url, "_blank", "noopener,noreferrer");
     }
-    window.open(url, "_blank", "noopener,noreferrer");
   } catch {
     window.open(url, "_blank", "noopener,noreferrer");
   }
 }
 
-// Helper: pick the best URL from backend response
 function pickBestUrl(out: any): string | null {
   const downloadUrl = typeof out?.download_url === "string" ? out.download_url : "";
   const url = typeof out?.url === "string" ? out.url : "";
   const signedUrl = typeof out?.signed_url === "string" ? out.signed_url : "";
-
-  // Prefer token-based download_url (will 302 to fresh signed url)
-  if (downloadUrl) return downloadUrl;
+  if (downloadUrl) return downloadUrl; // preferred: token endpoint
   if (url) return url;
   if (signedUrl) return signedUrl;
   return null;
@@ -1495,7 +1463,7 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
-    // Reset zip UI when date range changes
+    // Reset ZIP UI when date range changes
     setZipStatus("idle");
     setZipUrl(null);
     setZipJobId(null);
@@ -1503,7 +1471,6 @@ export default function Home() {
     setExportError(null);
   }, [exportStart, exportEnd]);
 
-  // Boot LIFF + whoami
   useEffect(() => {
     (async () => {
       try {
@@ -1531,11 +1498,7 @@ export default function Home() {
         const line_user_id = profile.userId;
 
         try {
-          const who = await callFn<WhoAmI>("liff-whoami", {
-            id_token,
-            line_user_id,
-          });
-
+          const who = await callFn<WhoAmI>("liff-whoami", { id_token, line_user_id });
           setView({
             kind: "ready",
             who,
@@ -1573,9 +1536,8 @@ export default function Home() {
         line_user_id,
         plan_key,
       });
-
       if (!out?.url) throw new Error("Missing checkout url");
-      openExternal(out.url); // ✅ external always
+      openExternal(out.url);
     } catch (e: any) {
       setView({ kind: "error", message: e?.message ?? String(e) });
     } finally {
@@ -1595,9 +1557,8 @@ export default function Home() {
         id_token,
         line_user_id,
       });
-
       if (!out?.url) throw new Error("Missing portal url");
-      openExternal(out.url); // ✅ external always
+      openExternal(out.url);
     } catch (e: any) {
       setView({ kind: "error", message: e?.message ?? String(e) });
     } finally {
@@ -1615,7 +1576,7 @@ export default function Home() {
       const line_user_id = view.lineUserId;
       if (!id_token || !line_user_id) throw new Error("Missing LIFF identity");
 
-      // Prefer URL mode if backend supports it (best in LINE)
+      // Prefer URL mode
       try {
         const out = await callFn<{ url?: string }>("billy-liff-export", {
           id_token,
@@ -1627,16 +1588,15 @@ export default function Home() {
 
         const url = typeof out?.url === "string" ? out.url : "";
         if (url) {
-          openExternal(url); // ✅ external always
+          openExternal(url);
           return;
         }
       } catch (e: any) {
-        // If backend doesn't support csv_url, fall back to blob download (may still fail in LINE webview)
         const msg = e?.message ?? String(e);
         if (!msg.includes("invalid_action")) throw e;
       }
 
-      // Fallback: blob download (best works outside LINE)
+      // Fallback blob
       const res = await callFnResponse("billy-liff-export", {
         id_token,
         line_user_id,
@@ -1648,16 +1608,13 @@ export default function Home() {
       const blob = await res.blob();
       const filename = `billy_export_${exportStart || "all"}_${exportEnd || "all"}.csv`;
 
-      // If in LINE client, open a new browser tab first (some devices block blob download in webview)
       if (liff.isInClient()) {
-        // Create a temporary object url then open external.
         const u = URL.createObjectURL(blob);
         openExternal(u);
         setTimeout(() => URL.revokeObjectURL(u), 10_000);
         return;
       }
 
-      // Normal browser download
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
@@ -1690,7 +1647,7 @@ export default function Home() {
         return;
       }
 
-      const out = await callFn<{ job_id: string; download_url?: string }>("billy-liff-export-zip", {
+      const out = await callFn<any>("billy-liff-export-zip", {
         id_token,
         line_user_id,
         action: "create",
@@ -1703,11 +1660,10 @@ export default function Home() {
       setZipJobId(out.job_id);
       setZipStatus("processing");
 
-      // If backend already returns download_url on create, store it early (even before ready)
-      const initialUrl = pickBestUrl(out);
-      if (initialUrl) setZipUrl(initialUrl);
+      // IMPORTANT: do NOT show link yet; store it only when READY.
+      // (We keep polling and will set zipUrl only when status === "ready".)
 
-      setToast("ZIP export created. Preparing… You can close this page.");
+      setToast("ZIP export created. We’ll send you a LINE message when it’s ready.");
       await pollZipStatus(out.job_id);
     } catch (e: any) {
       setZipStatus("error");
@@ -1722,7 +1678,6 @@ export default function Home() {
     const line_user_id = view.lineUserId;
     if (!id_token || !line_user_id) throw new Error("Missing LIFF identity");
 
-    // ~80 seconds
     for (let i = 0; i < 40; i += 1) {
       const out = await callFn<any>("billy-liff-export-zip", {
         id_token,
@@ -1732,13 +1687,16 @@ export default function Home() {
       });
 
       const status = String(out?.status ?? "");
-      const best = pickBestUrl(out);
-
-      // Keep latest best url so user can copy/open anytime
-      if (best && aliveRef.current) setZipUrl(best);
-
       if (status === "ready") {
+        const best = pickBestUrl(out);
+        if (!best) {
+          setZipStatus("error");
+          setExportError("ZIP is ready but missing download link.");
+          return;
+        }
+
         if (!aliveRef.current) return;
+        setZipUrl(best);
         setZipStatus("ready");
         setToast("ZIP is ready. Download opens in browser.");
         return;
@@ -1771,24 +1729,11 @@ export default function Home() {
     >
       <div style={{ maxWidth: 520, margin: "0 auto", padding: "22px 18px 28px" }}>
         <Card>
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              gap: 12,
-            }}
-          >
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
             <div>
               <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                 <LogoMark />
-                <div
-                  style={{
-                    fontSize: "clamp(17px, 4.2vw, 21px)",
-                    fontWeight: 800,
-                    letterSpacing: -0.3,
-                  }}
-                >
+                <div style={{ fontSize: "clamp(17px, 4.2vw, 21px)", fontWeight: 800, letterSpacing: -0.3 }}>
                   Billy — Manage subscription
                 </div>
               </div>
@@ -1799,20 +1744,12 @@ export default function Home() {
             <Pill>LIFF</Pill>
           </div>
 
-          <div
-            style={{
-              height: 1,
-              background: "rgba(15, 23, 42, 0.06)",
-              margin: "10px 0 10px",
-            }}
-          />
+          <div style={{ height: 1, background: "rgba(15, 23, 42, 0.06)", margin: "10px 0 10px" }} />
 
           <div>
             {view.kind === "link-needed" && (
               <>
-                <div style={{ fontSize: 13, color: BRAND.ink, whiteSpace: "pre-line" }}>
-                  {view.message}
-                </div>
+                <div style={{ fontSize: 13, color: BRAND.ink, whiteSpace: "pre-line" }}>{view.message}</div>
                 <div style={{ marginTop: 12 }}>
                   <Button variant="ghost" onClick={() => openExternal("https://line.me")}>
                     Open LINE
@@ -1880,13 +1817,7 @@ export default function Home() {
                   )}
                 </div>
 
-                <div
-                  style={{
-                    height: 1,
-                    background: "rgba(15, 23, 42, 0.06)",
-                    margin: "12px 0",
-                  }}
-                />
+                <div style={{ height: 1, background: "rgba(15, 23, 42, 0.06)", margin: "12px 0" }} />
 
                 <div style={{ fontSize: 11, color: BRAND.muted, fontWeight: 600, marginBottom: 8 }}>
                   Billing Actions
@@ -1971,11 +1902,6 @@ export default function Home() {
                     </div>
                   </div>
                 )}
-
-                <div style={{ marginTop: 10, fontSize: 12, color: "#94a3b8", lineHeight: 1.6 }}>
-                  Tip: If billing status doesn’t update instantly, wait 10–30 seconds for webhook
-                  processing, then reopen.
-                </div>
               </>
             )}
           </div>
@@ -1998,7 +1924,7 @@ export default function Home() {
           </div>
 
           <div style={{ marginTop: 4, fontSize: 12, color: BRAND.muted, lineHeight: 1.6 }}>
-            Export your data in CSV or ZIP.
+            Export your data in CSV or ZIP. Downloads always open in browser (not inside LINE).
           </div>
 
           {view.kind === "ready" && view.who.role !== "owner" && (
@@ -2009,7 +1935,6 @@ export default function Home() {
 
           {view.kind === "ready" && view.who.role === "owner" && (
             <>
-              {/* Date Range */}
               <div style={{ marginTop: 10, display: "flex", gap: 10, flexWrap: "wrap" }}>
                 <div style={{ flex: 1 }}>
                   <label style={{ fontSize: 12, color: BRAND.muted }}>Start date</label>
@@ -2048,7 +1973,6 @@ export default function Home() {
                 </div>
               </div>
 
-              {/* Quick range chips */}
               <div
                 style={{
                   marginTop: 8,
@@ -2123,7 +2047,7 @@ export default function Home() {
                 )}
               </div>
 
-              {/* CSV card */}
+              {/* CSV */}
               <div
                 style={{
                   marginTop: 14,
@@ -2135,19 +2059,19 @@ export default function Home() {
               >
                 <div style={{ fontSize: 13, fontWeight: 700, color: BRAND.ink }}>CSV export</div>
                 <div style={{ marginTop: 4, fontSize: 12, color: BRAND.muted, lineHeight: 1.5 }}>
-                  Transactions only (no images). Download opens in browser.
+                  Transactions only (no images).
                 </div>
                 <div style={{ marginTop: 10 }}>
                   <Button
                     disabled={exportBusy !== null || !isValidDateRange(exportStart, exportEnd)}
                     onClick={exportCsv}
                   >
-                    {exportBusy === "csv" ? "Preparing CSV…" : "Download CSV (opens browser)"}
+                    {exportBusy === "csv" ? "Preparing CSV…" : "Download Summary Sheet"}
                   </Button>
                 </div>
               </div>
 
-              {/* ZIP card */}
+              {/* ZIP */}
               <div
                 style={{
                   marginTop: 10,
@@ -2161,8 +2085,6 @@ export default function Home() {
                   ZIP export (images)
                 </div>
                 <div style={{ marginTop: 4, fontSize: 12, color: BRAND.muted, lineHeight: 1.5 }}>
-                  Create a ZIP of uploaded receipt/payslip images for the selected date range.
-                  <br />
                   We’ll send the download link in LINE when it’s ready.
                 </div>
 
@@ -2177,22 +2099,23 @@ export default function Home() {
                     }
                     onClick={createZipJob}
                   >
-                    {zipStatus === "idle" && "Create ZIP export"}
-                    {zipStatus === "creating" && "Creating job…"}
-                    {zipStatus === "processing" && "Preparing ZIP… (you can close this page)"}
-                    {zipStatus === "ready" && "ZIP is ready"}
+                    {zipStatus === "idle" && "Download Payslips/Images"}
+                    {zipStatus === "creating" && "working on in"}
+                    {zipStatus === "processing" && "Preparing (check LINE message soon)"}
+                    {zipStatus === "ready" && "File is ready"}
                     {zipStatus === "error" && "Retry ZIP export"}
                   </Button>
                 </div>
 
-                {zipJobId && zipStatus === "processing" && (
+                {/* While processing: show job id only */}
+                {zipJobId && (zipStatus === "creating" || zipStatus === "processing") && (
                   <div style={{ marginTop: 8, fontSize: 12, color: BRAND.muted }}>
-                    Job ID:{" "}
-                    <span style={{ fontFamily: "monospace" }}>{zipJobId.slice(0, 8)}…</span>
+                    Job ID: <span style={{ fontFamily: "monospace" }}>{zipJobId.slice(0, 8)}…</span>
                   </div>
                 )}
 
-                {zipUrl && (
+                {/* ✅ Only show buttons when READY */}
+                {zipStatus === "ready" && zipUrl && (
                   <div style={{ marginTop: 10, display: "grid", gap: 8 }}>
                     <button
                       type="button"
@@ -2227,21 +2150,14 @@ export default function Home() {
                         fontSize: 12,
                         fontWeight: 700,
                         cursor: "pointer",
-                        color: BRAND.ink,
                       }}
                     >
                       {zipCopied ? "Copied ✅" : "Copy link"}
                     </button>
-
-                    <div style={{ fontSize: 11, color: BRAND.muted, lineHeight: 1.5 }}>
-                      Note: Downloads don’t work reliably inside LINE in-app browser, so we always open the
-                      external browser.
-                    </div>
                   </div>
                 )}
               </div>
 
-              {/* Error */}
               {exportError && (
                 <div
                   style={{
@@ -2259,7 +2175,6 @@ export default function Home() {
                 </div>
               )}
 
-              {/* Toast */}
               {toast && (
                 <div
                   style={{
