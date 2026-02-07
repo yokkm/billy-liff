@@ -233,6 +233,23 @@ function toISODateLocal(d: Date) {
   return `${y}-${m}-${day}`;
 }
 
+function openExternal(url: string) {
+  try {
+    if (liff.isInClient()) {
+      liff.openWindow({
+        url,
+        external: true, // 🚨 THIS IS THE KEY
+      });
+    } else {
+      window.open(url, "_blank", "noopener,noreferrer");
+    }
+  } catch {
+    // Fallback
+    window.open(url, "_blank", "noopener,noreferrer");
+  }
+}
+
+
 function isValidDateRange(start: string, end: string) {
   if (!start || !end) return true; // allow "All time"
   return new Date(start).getTime() <= new Date(end).getTime();
@@ -992,7 +1009,7 @@ export default function Home() {
 
                 {zipUrl && (
                   <div style={{ marginTop: 10, display: "grid", gap: 8 }}>
-                    <a
+                    {/* <a
                       href={zipUrl}
                       target="_blank"
                       rel="noreferrer"
@@ -1010,7 +1027,49 @@ export default function Home() {
                       }}
                     >
                       Open ZIP download
-                    </a>
+                    </a> */}
+                    {zipUrl && (
+                      <div style={{ marginTop: 10, display: "grid", gap: 8 }}>
+                        <button
+                          type="button"
+                          onClick={() => openExternal(zipUrl)}
+                          style={{
+                            padding: "12px",
+                            borderRadius: 10,
+                            border: "1px solid rgba(249, 115, 22, 0.35)",
+                            background: "rgba(255, 247, 237, 0.95)",
+                            fontSize: 13,
+                            fontWeight: 800,
+                            color: BRAND.orangeDeep,
+                            cursor: "pointer",
+                            textAlign: "center",
+                          }}
+                        >
+                          ⬇️ Download ZIP (opens browser)
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            const ok = await copyToClipboard(zipUrl);
+                            setZipCopied(ok);
+                            setToast(ok ? "Copied ZIP link" : "Copy failed");
+                          }}
+                          style={{
+                            padding: "10px",
+                            borderRadius: 10,
+                            border: "1px solid rgba(15, 23, 42, 0.12)",
+                            background: "rgba(255,255,255,0.9)",
+                            fontSize: 12,
+                            fontWeight: 700,
+                            cursor: "pointer",
+                          }}
+                        >
+                          {zipCopied ? "Copied ✅" : "Copy link"}
+                        </button>
+                      </div>
+                    )}
+
 
                     <button
                       type="button"
