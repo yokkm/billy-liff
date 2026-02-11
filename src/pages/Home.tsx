@@ -1604,6 +1604,7 @@ export default function Home() {
 
   const isBabyPlan = view.kind === "ready" && view.who.plan_key === "baby";
   const isFreePlan = view.kind === "ready" && view.who.plan_key === "free";
+  const isBigPlan = view.kind === "ready" && (view.who.plan_key === "big" || view.who.plan_key === "pro");
 
   // ✅ default tab: if user enters from LINE with job_id => Export Center
   useEffect(() => {
@@ -2186,17 +2187,55 @@ export default function Home() {
                       </div>
 
                       <div style={{ display: "grid", gap: 10 }}>
-                        <Button disabled={!canOwner || busy} onClick={() => openCheckout("big")}>
-                          Upgrade Big Billy
-                        </Button>
+                        {!isBigPlan && (
+                          <Button disabled={!canOwner || busy} onClick={() => openCheckout("big")}>
+                            Upgrade Big Billy
+                          </Button>
+                        )}
 
-                        <Button
-                          variant="secondary"
-                          disabled={!canOwner || busy || isBabyPlan}
-                          onClick={() => openCheckout("baby")}
-                        >
-                          {isBabyPlan ? "Current: Baby Billy" : "Upgrade Baby Billy"}
-                        </Button>
+                        {isFreePlan && (
+                          <Button
+                            variant="secondary"
+                            disabled={!canOwner || busy}
+                            onClick={() => openCheckout("baby")}
+                          >
+                            Upgrade Baby Billy
+                          </Button>
+                        )}
+
+                        {isBabyPlan && (
+                          <div
+                            style={{
+                              padding: "10px 12px",
+                              borderRadius: 12,
+                              border: "1px solid rgba(15, 23, 42, 0.10)",
+                              background: "rgba(255,255,255,0.9)",
+                              fontSize: 12,
+                              fontWeight: 900,
+                              color: BRAND.muted,
+                              textAlign: "center",
+                            }}
+                          >
+                            You’re on Baby Billy
+                          </div>
+                        )}
+
+                        {isBigPlan && (
+                          <div
+                            style={{
+                              padding: "10px 12px",
+                              borderRadius: 12,
+                              border: "1px solid rgba(15, 23, 42, 0.10)",
+                              background: "rgba(255,255,255,0.9)",
+                              fontSize: 12,
+                              fontWeight: 900,
+                              color: BRAND.muted,
+                              textAlign: "center",
+                            }}
+                          >
+                            You’re on Big Billy
+                          </div>
+                        )}
                       </div>
 
                       <div style={{ marginTop: 10 }}>
@@ -2206,19 +2245,43 @@ export default function Home() {
                           disabled={!canOwner || busy}
                           style={{
                             width: "100%",
-                            padding: "10px 12px",
-                            borderRadius: 12,
-                            border: "1px solid rgba(15, 23, 42, 0.10)",
-                            background: "rgba(255,255,255,0.9)",
-                            color: BRAND.muted,
+                            padding: "8px 6px",
+                            borderRadius: 10,
+                            border: "none",
+                            background: "transparent",
+                            color: BRAND.orangeDeep,
                             fontSize: 12,
                             fontWeight: 900,
                             cursor: !canOwner || busy ? "not-allowed" : "pointer",
                             opacity: !canOwner || busy ? 0.6 : 1,
                             textAlign: "center",
+                            textDecoration: "underline",
                           }}
                         >
-                          Manage in Stripe Portal (opens browser)
+                          Manage in Stripe Portal
+                        </button>
+                      </div>
+
+                      <div style={{ marginTop: 10 }}>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            window.location.href = "/plans";
+                          }}
+                          style={{
+                            width: "100%",
+                            padding: "10px 12px",
+                            borderRadius: 12,
+                            border: "1px solid rgba(15, 23, 42, 0.10)",
+                            background: "transparent",
+                            color: BRAND.ink,
+                            fontSize: 12,
+                            fontWeight: 900,
+                            cursor: "pointer",
+                            textAlign: "center",
+                          }}
+                        >
+                          Compare plans
                         </button>
                       </div>
 
