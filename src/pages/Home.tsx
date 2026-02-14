@@ -1383,6 +1383,43 @@ function isValidDateRange(start: string, end: string) {
   return new Date(start).getTime() <= new Date(end).getTime();
 }
 
+function planHistoryDays(planKey: string) {
+  const key = String(planKey || "").toLowerCase();
+  if (key === "pro" || key === "big" || key === "big_billy") return 365;
+  if (key === "baby") return 120;
+  return 30;
+}
+
+function historyStartDate(planKey: string) {
+  const days = planHistoryDays(planKey);
+  const back = Math.max(1, days) - 1;
+  const d = new Date();
+  d.setDate(d.getDate() - back);
+  return toISODateLocal(d);
+}
+
+function clampHistoryRange(planKey: string, start: string, end: string) {
+  const minDate = historyStartDate(planKey);
+  const maxDate = toISODateLocal(new Date());
+
+  let nextStart = start || minDate;
+  let nextEnd = end || maxDate;
+
+  if (nextStart < minDate) nextStart = minDate;
+  if (nextEnd > maxDate) nextEnd = maxDate;
+
+  if (nextEnd < minDate) return { ok: false as const, minDate, maxDate };
+  if (nextStart > nextEnd) return { ok: false as const, minDate, maxDate };
+
+  const adjusted = nextStart !== (start || minDate) || nextEnd !== (end || maxDate);
+  return { ok: true as const, start: nextStart, end: nextEnd, adjusted, minDate, maxDate };
+}
+
+function historyLimitMessage(planKey: string, minDate: string, maxDate: string) {
+  const days = planHistoryDays(planKey);
+  return `Your plan includes the last ${days} days.\nChoose a range between ${minDate} and ${maxDate}.`;
+}
+
 async function copyToClipboard(text: string) {
   try {
     await navigator.clipboard.writeText(text);
@@ -1420,6 +1457,11 @@ function getQueryParam(name: string) {
   } catch {
     return null;
   }
+}
+
+function normalizeTab(raw: string | null): TabKey | null {
+  if (raw === "billing" || raw === "export") return raw;
+  return null;
 }
 
 function TabPills({
@@ -1591,6 +1633,10 @@ export default function Home() {
   const [exportEnd, setExportEnd] = useState(() => toISODateLocal(today));
 
   const canOwner = useMemo(() => view.kind === "ready" && view.who.role === "owner", [view]);
+  const canExport = useMemo(
+    () => view.kind === "ready" && (view.who.role === "owner" || view.who.role === "accountant"),
+    [view],
+  );
   // const planKey = useMemo(() => (view.kind === "ready" ? view.who.plan_key : ""), [view]);
 
   const planLabel = useMemo(() => {
@@ -1606,10 +1652,26 @@ export default function Home() {
   const isFreePlan = view.kind === "ready" && view.who.plan_key === "free";
   const isBigPlan = view.kind === "ready" && (view.who.plan_key === "big" || view.who.plan_key === "pro");
 
-  // ✅ default tab: if user enters from LINE with job_id => Export Center
+  const handleTabChange = (next: TabKey) => {
+    setActiveTab(next);
+    try {
+      const u = new URL(window.location.href);
+      u.searchParams.set("tab", next);
+      window.history.replaceState({}, "", u.toString());
+    } catch {
+      // ignore
+    }
+  };
+
+  // ✅ deep link: ?tab=billing|export (job_id always forces export)
   useEffect(() => {
     const jobId = getQueryParam("job_id");
-    if (jobId) setActiveTab("export");
+    if (jobId) {
+      setActiveTab("export");
+      return;
+    }
+    const tabParam = normalizeTab(getQueryParam("tab"));
+    if (tabParam) setActiveTab(tabParam);
   }, []);
 
   useEffect(() => {
@@ -1676,7 +1738,7 @@ export default function Home() {
           });
 
           // If non-owner, keep them away from billing actions by default
-          if (who.role !== "owner") setActiveTab("export");
+          if (who.role !== "owner") handleTabChange("export");
         } catch (e: any) {
           const msg = e?.message ?? String(e);
           if (msg.includes("workspace_not_linked")) {
@@ -1705,7 +1767,7 @@ export default function Home() {
 
     if (zipJobId && zipJobId === jobId) return;
 
-    setActiveTab("export");
+    handleTabChange("export");
     setZipJobId(jobId);
     setZipStatus("processing");
     setZipUrl(null);
@@ -1773,14 +1835,30 @@ export default function Home() {
       const line_user_id = view.lineUserId;
       if (!id_token || !line_user_id) throw new Error("Missing LIFF identity");
 
+      const clamp = clampHistoryRange(view.who.plan_key, exportStart, exportEnd);
+      if (!clamp.ok) {
+        setExportError(historyLimitMessage(view.who.plan_key, clamp.minDate, clamp.maxDate));
+        setExportStart(clamp.minDate);
+        setExportEnd(clamp.maxDate);
+        return;
+      }
+      if (clamp.adjusted) {
+        setExportStart(clamp.start);
+        setExportEnd(clamp.end);
+        setToast(`Adjusted to the last ${planHistoryDays(view.who.plan_key)} days.`);
+      }
+
+      const rangeStart = clamp.start;
+      const rangeEnd = clamp.end;
+
       // Prefer URL mode
       try {
         const out = await callFn<{ url?: string }>("billy-liff-export", {
           id_token,
           line_user_id,
           action: "csv_url",
-          start_date: exportStart || null,
-          end_date: exportEnd || null,
+          start_date: rangeStart || null,
+          end_date: rangeEnd || null,
         });
 
         const url = typeof out?.url === "string" ? out.url : "";
@@ -1798,12 +1876,12 @@ export default function Home() {
         id_token,
         line_user_id,
         action: "csv",
-        start_date: exportStart || null,
-        end_date: exportEnd || null,
+        start_date: rangeStart || null,
+        end_date: rangeEnd || null,
       });
 
       const blob = await res.blob();
-      const filename = `billy_export_${exportStart || "all"}_${exportEnd || "all"}.csv`;
+      const filename = `billy_export_${rangeStart || "all"}_${rangeEnd || "all"}.csv`;
 
       if (liff.isInClient()) {
         const u = URL.createObjectURL(blob);
@@ -1819,7 +1897,16 @@ export default function Home() {
       a.click();
       URL.revokeObjectURL(url);
     } catch (e: any) {
-      setExportError(e?.message ?? String(e));
+      const msg = e?.message ?? String(e);
+      if (msg.includes("history_limit")) {
+        const minDate = historyStartDate(view.kind === "ready" ? view.who.plan_key : "free");
+        const maxDate = toISODateLocal(new Date());
+        setExportError(historyLimitMessage(view.who.plan_key, minDate, maxDate));
+        setExportStart(minDate);
+        setExportEnd(maxDate);
+      } else {
+        setExportError(msg);
+      }
     } finally {
       setExportBusy(null);
     }
@@ -1864,12 +1951,26 @@ export default function Home() {
         return;
       }
 
+      const clamp = clampHistoryRange(view.who.plan_key, exportStart, exportEnd);
+      if (!clamp.ok) {
+        setZipStatus("error");
+        setExportError(historyLimitMessage(view.who.plan_key, clamp.minDate, clamp.maxDate));
+        setExportStart(clamp.minDate);
+        setExportEnd(clamp.maxDate);
+        return;
+      }
+      if (clamp.adjusted) {
+        setExportStart(clamp.start);
+        setExportEnd(clamp.end);
+        setToast(`Adjusted to the last ${planHistoryDays(view.who.plan_key)} days.`);
+      }
+
       const out = await callFn<any>("billy-liff-export-zip", {
         id_token,
         line_user_id,
         action: "create",
-        start_date: exportStart || null,
-        end_date: exportEnd || null,
+        start_date: clamp.start || null,
+        end_date: clamp.end || null,
       });
 
       if (!out?.job_id) throw new Error("Missing job id");
@@ -1884,8 +1985,17 @@ export default function Home() {
       setToast("Packing started. You can close this page — I’ll DM you when it’s ready.");
       await pollZipStatus(out.job_id);
     } catch (e: any) {
+      const msg = e?.message ?? String(e);
       setZipStatus("error");
-      setExportError(e?.message ?? String(e));
+      if (msg.includes("history_limit")) {
+        const minDate = historyStartDate(view.kind === "ready" ? view.who.plan_key : "free");
+        const maxDate = toISODateLocal(new Date());
+        setExportError(historyLimitMessage(view.who.plan_key, minDate, maxDate));
+        setExportStart(minDate);
+        setExportEnd(maxDate);
+      } else {
+        setExportError(msg);
+      }
     }
   }
 
@@ -1994,7 +2104,7 @@ export default function Home() {
               >
                 <TabPills
                   active={activeTab}
-                  onChange={setActiveTab}
+                  onChange={handleTabChange}
                   canOwner={view.who.role === "owner"}
                 />
               </div>
@@ -2131,7 +2241,7 @@ export default function Home() {
                       />
                       {view.who.role !== "owner" && (
                         <div style={{ marginTop: 10, fontSize: 12, color: BRAND.muted }}>
-                          Only the workspace <b>owner</b> can export and manage billing.
+                          Owners and accountants can export. Only the <b>owner</b> can manage billing.
                         </div>
                       )}
                     </div>
@@ -2178,7 +2288,7 @@ export default function Home() {
                     <LockScreen
                       title="Billing is owner-only 🔒"
                       desc={"Ask your workspace owner to upgrade or manage billing."}
-                      onOpenBilling={() => setActiveTab("export")}
+                      onOpenBilling={() => handleTabChange("export")}
                     />
                   ) : (
                     <>
@@ -2335,13 +2445,13 @@ export default function Home() {
                 <>
                   {/* Export Center */}
                   <Divider />
-                  {view.who.role !== "owner" ? (
+                  {!canExport ? (
                     <LockScreen
-                      title="Export is owner-only 🔒"
+                      title="Export is owner/accountant-only 🔒"
                       desc={
-                        "This workspace is protected.\n\nOnly the owner can export CSV or ZIP files."
+                        "This workspace is protected.\n\nOnly the owner or accountant can export CSV or ZIP files."
                       }
-                      onOpenBilling={() => setActiveTab("billing")}
+                      onOpenBilling={() => handleTabChange("billing")}
                     />
                   ) : (
                     <>
