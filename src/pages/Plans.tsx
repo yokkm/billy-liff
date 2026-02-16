@@ -211,8 +211,9 @@ export default function Plans() {
                   "Best for: personal finance or small teams",
                   "👥 Invite up to 3 members",
                   "🧮 Invite 1 trusted accountant",
-                  "🧾 Up to 60 entries / month",
-                  "📷 Up to 60 scans / month",
+                  "🧾 Up to 100 entries / month",
+                  "📷 Up to 100 scans / month",
+                  "➕ Top-ups available for busy months",
                   "🗂️ View/export includes last 90 days",
                   "📷 Receipts, slips, text — all together",
                   "Why people choose Baby Billy",
@@ -243,6 +244,15 @@ export default function Plans() {
                 footer="“For people who take money seriously.”"
                 highlight
               />
+
+              <SectionTitle>➕ Top-ups (Baby only)</SectionTitle>
+              <Subtle>
+                Add extra quota for busy months. Top-ups add to both scan + confirmed usage for this month only.
+                <br />
+                • +50 entries — 99 THB
+                <br />
+                • +150 entries — 249 THB
+              </Subtle>
 
               <SectionTitle>🧠 Good to know (All plans)</SectionTitle>
               <Subtle>
@@ -291,8 +301,9 @@ export default function Plans() {
                   "สิ่งที่ได้",
                   "👥 เชิญสมาชิกได้สูงสุด 3 คน",
                   "🧮 เชิญนักบัญชีที่ไว้ใจได้ 1 คน",
-                  "🧾 บันทึกได้ 60 รายการ/เดือน",
-                  "📷 สแกนได้สูงสุด 60 ครั้ง/เดือน",
+                  "🧾 บันทึกได้ 100 รายการ/เดือน",
+                  "📷 สแกนได้สูงสุด 100 ครั้ง/เดือน",
+                  "➕ ซื้อท็อปอัปเพิ่มได้เมื่อใช้เยอะ",
                   "🗂️ ดูย้อนหลัง/ส่งออกได้ 90 วัน",
                   "📷 ใบเสร็จ สลิป ข้อความ — รวมไว้ที่เดียว",
                   "ทำไมคนเลือก Baby Billy",
@@ -324,6 +335,15 @@ export default function Plans() {
                 footer="“สำหรับคนที่เอาเรื่องเงินจริงจัง”"
                 highlight
               />
+
+              <SectionTitle>➕ ท็อปอัป (เฉพาะ Baby)</SectionTitle>
+              <Subtle>
+                เพิ่มโควต้าเฉพาะเดือนนี้ ทั้งสแกน + ยืนยัน จะเพิ่มพร้อมกัน
+                <br />
+                • เพิ่ม 50 รายการ — 99 บาท
+                <br />
+                • เพิ่ม 150 รายการ — 249 บาท
+              </Subtle>
 
               <SectionTitle>🧠 สิ่งที่ควรรู้ (ทุกแผน)</SectionTitle>
               <Subtle>

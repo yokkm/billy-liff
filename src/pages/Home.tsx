@@ -1168,6 +1168,11 @@ const BRAND = {
   soft: "rgba(255, 247, 237, 0.95)",
 };
 
+const TOPUP_PACKS = [
+  { key: "topup_50", units: 50, price: 99, label: "Add +50 entries · 99 THB" },
+  { key: "topup_150", units: 150, price: 249, label: "Add +150 entries · 249 THB" },
+];
+
 function Card({ children }: { children: React.ReactNode }) {
   return (
     <div
@@ -1782,6 +1787,29 @@ export default function Home() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [view.kind, canOwner]);
 
+  // ✅ Top-up success toast from Stripe redirect
+  useEffect(() => {
+    if (view.kind !== "ready") return;
+    const topup = getQueryParam("topup");
+    if (!topup) return;
+
+    if (topup === "success") {
+      setToast("Top-up successful ✅");
+      handleTabChange("billing");
+    } else if (topup === "cancel") {
+      setToast("Top-up canceled");
+      handleTabChange("billing");
+    }
+
+    try {
+      const u = new URL(window.location.href);
+      u.searchParams.delete("topup");
+      window.history.replaceState({}, "", u.toString());
+    } catch {
+      // ignore
+    }
+  }, [view.kind]);
+
   async function openCheckout(plan_key: "baby" | "big") {
     if (view.kind !== "ready") return;
     try {
@@ -1794,6 +1822,28 @@ export default function Home() {
         id_token,
         line_user_id,
         plan_key,
+      });
+      if (!out?.url) throw new Error("Missing checkout url");
+      openExternal(out.url);
+    } catch (e: any) {
+      setView({ kind: "error", message: e?.message ?? String(e) });
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function openTopupCheckout(topup_key: string) {
+    if (view.kind !== "ready") return;
+    try {
+      setBusy(true);
+      const id_token = liff.getIDToken();
+      const line_user_id = view.lineUserId;
+      if (!id_token || !line_user_id) throw new Error("Missing LIFF identity");
+
+      const out = await callFn<{ url: string }>("liff-stripe-create-topup", {
+        id_token,
+        line_user_id,
+        topup_key,
       });
       if (!out?.url) throw new Error("Missing checkout url");
       openExternal(out.url);
@@ -2355,6 +2405,37 @@ export default function Home() {
                         )}
                       </div>
 
+                      {isBabyPlan && (
+                        <div
+                          style={{
+                            marginTop: 12,
+                            padding: "12px 12px",
+                            borderRadius: 14,
+                            border: "1px solid rgba(15, 23, 42, 0.08)",
+                            background: "rgba(255,255,255,0.9)",
+                          }}
+                        >
+                          <div style={{ fontSize: 13, fontWeight: 950, color: BRAND.ink }}>
+                            Need more this month?
+                          </div>
+                          <div style={{ marginTop: 4, fontSize: 12, color: BRAND.muted, lineHeight: 1.6 }}>
+                            Top-ups add to scan + confirmed quota for this month only.
+                          </div>
+                          <div style={{ marginTop: 10, display: "grid", gap: 8 }}>
+                            {TOPUP_PACKS.map((pack) => (
+                              <Button
+                                key={pack.key}
+                                variant="secondary"
+                                disabled={!canOwner || busy}
+                                onClick={() => openTopupCheckout(pack.key)}
+                              >
+                                {pack.label}
+                              </Button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
                       <div style={{ marginTop: 10 }}>
                         <button
                           type="button"
@@ -2438,11 +2519,11 @@ export default function Home() {
                           <div style={{ color: BRAND.ink, fontWeight: 950 }}>
                             Current plan: {planLabel || titleCasePlan(view.who.plan_key)}
                           </div>
-                          <div style={{ marginTop: 6 }}>Baby Billy: 60 entries/month</div>
+                          <div style={{ marginTop: 6 }}>Baby Billy: 100 entries/month</div>
                           <div>Big Billy: 500 entries/month</div>
                           <div style={{ marginTop: 6 }}>History window: 45 / 90 / 365 days (view/export)</div>
                           <div style={{ marginTop: 6, fontSize: 11 }}>
-                            Tip: Scan usage follows your monthly plan.
+                            Tip: Scan usage follows your monthly plan. Top-ups add to scan + confirmed for the month.
                           </div>
                         </div>
                       )}
