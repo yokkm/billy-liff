@@ -1386,8 +1386,8 @@ function isValidDateRange(start: string, end: string) {
 function planHistoryDays(planKey: string) {
   const key = String(planKey || "").toLowerCase();
   if (key === "pro" || key === "big" || key === "big_billy") return 365;
-  if (key === "baby") return 120;
-  return 30;
+  if (key === "baby") return 90;
+  return 45;
 }
 
 function historyStartDate(planKey: string) {
@@ -1417,7 +1417,7 @@ function clampHistoryRange(planKey: string, start: string, end: string) {
 
 function historyLimitMessage(planKey: string, minDate: string, maxDate: string) {
   const days = planHistoryDays(planKey);
-  return `Your plan includes the last ${days} days.\nChoose a range between ${minDate} and ${maxDate}.`;
+  return `View/export includes the last ${days} days.\nChoose a range between ${minDate} and ${maxDate}.`;
 }
 
 async function copyToClipboard(text: string) {
@@ -2031,6 +2031,13 @@ export default function Home() {
         return;
       }
 
+      if (status === "expired") {
+        if (!aliveRef.current) return;
+        setZipStatus("error");
+        setExportError("This ZIP link has expired. Please create a new ZIP.");
+        return;
+      }
+
       if (status === "failed") {
         if (!aliveRef.current) return;
         setZipStatus("error");
@@ -2431,10 +2438,11 @@ export default function Home() {
                           <div style={{ color: BRAND.ink, fontWeight: 950 }}>
                             Current plan: {planLabel || titleCasePlan(view.who.plan_key)}
                           </div>
-                          <div style={{ marginTop: 6 }}>Baby Billy: 50 slips/month</div>
-                          <div>Big Billy: 200 slips/month</div>
+                          <div style={{ marginTop: 6 }}>Baby Billy: 60 entries/month</div>
+                          <div>Big Billy: 500 entries/month</div>
+                          <div style={{ marginTop: 6 }}>History window: 45 / 90 / 365 days (view/export)</div>
                           <div style={{ marginTop: 6, fontSize: 11 }}>
-                            Tip: Upgrading increases monthly OCR limits.
+                            Tip: Scan usage follows your monthly plan.
                           </div>
                         </div>
                       )}
@@ -2507,10 +2515,10 @@ export default function Home() {
                             },
                           },
                           {
-                            label: "Last 30 days",
+                            label: "Last 45 days",
                             onClick: () => {
                               const d = new Date();
-                              const start = new Date(d.getTime() - 29 * 24 * 60 * 60 * 1000);
+                              const start = new Date(d.getTime() - 44 * 24 * 60 * 60 * 1000);
                               setExportStart(toISODateLocal(start));
                               setExportEnd(toISODateLocal(d));
                             },
@@ -2563,6 +2571,9 @@ export default function Home() {
                             <div style={{ fontSize: 13, fontWeight: 950, color: BRAND.ink }}>Receipts & Payslips (ZIP)</div>
                             <div style={{ marginTop: 4, fontSize: 12, color: BRAND.muted, lineHeight: 1.55 }}>
                               Premium download. We’ll DM you when it’s ready.
+                            </div>
+                            <div style={{ marginTop: 6, fontSize: 11, color: BRAND.muted, lineHeight: 1.5 }}>
+                              ZIP files are kept for 24 hours, then auto-deleted.
                             </div>
                           </div>
                           <Pill>ZIP</Pill>
@@ -2629,6 +2640,8 @@ export default function Home() {
                             }}
                           >
                             ✅ ZIP is ready. Download opens in your browser.
+                            <br />
+                            Available for 24 hours.
                           </div>
                         ) : null}
 
