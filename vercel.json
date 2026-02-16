@@ -1,4 +1,7 @@
 {
+  "crons": [
+    { "path": "/api/cron/draft-reminder", "schedule": "0 11 * * *" }
+  ],
   "rewrites": [
     { "source": "/(.*)", "destination": "/" }
   ]
